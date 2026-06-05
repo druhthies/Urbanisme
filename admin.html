@@ -1,0 +1,4178 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>MUCTAT — Gestion des Dossiers d'Urbanisme · Thiès</title>
+<link rel="icon" type="image/jpeg" href="images/muctat-logo.jpg">
+<script>
+  // FORCE HTTP - évite localStorage indisponible
+  if (window.location.protocol === 'file:') {
+    window.location.href = 'http://localhost/web/admin.html';
+  }
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --sen-green: #00853F;
+    --sen-yellow: #FDEF42;
+    --sen-red: #E31B23;
+    --navy: #0B3D6E;
+    --navy-mid: #185FA5;
+    --navy-light: #D6E8F7;
+    --navy-xlight: #EEF5FC;
+    --gold: #C49A2B;
+    --text: #1A1A2E;
+    --text-muted: #5A6A7A;
+    --surface: #FFFFFF;
+    --surface-alt: #F4F7FB;
+    --border: #D4DEE8;
+    --border-light: #E8EEF4;
+    --danger: #C0392B;
+    --danger-light: #FDECEC;
+    --success: #1A6B3A;
+    --success-light: #E8F5EE;
+    --radius: 8px;
+    --radius-lg: 12px;
+    --shadow: 0 1px 4px rgba(11,61,110,0.08);
+    --shadow-deep: 0 18px 48px rgba(11,61,110,0.18);
+    --surface-soft: #fbfcff;
+    --surface-elevated: rgba(255,255,255,0.96);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Source Sans 3', sans-serif;
+    background: linear-gradient(180deg, #EAF2FB 0%, #F8FBFF 45%, #FFFFFF 100%);
+    background-image: radial-gradient(circle at top left, rgba(255,255,255,0.85), transparent 18%), radial-gradient(circle at bottom right, rgba(24,95,165,0.12), transparent 24%), linear-gradient(180deg, #EAF2FB 0%, #F8FBFF 45%, #FFFFFF 100%);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .page-header {
+    background: var(--navy);
+    color: white;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(11,61,110,0.25);
+  }
+  .header-flag { display: flex; height: 4px; }
+  .header-flag span { flex: 1; }
+  .header-inner {
+    max-width: 1400px;
+    margin: auto;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .header-seal {
+    width: 60px;
+    height: 40px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+  .header-text { flex: 1; }
+  .header-text .republic { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sen-yellow); font-weight: 500; }
+  .header-text h1 { font-family: 'Playfair Display', serif; font-size: 17px; font-weight: 600; }
+  .header-text .sub { font-size: 11px; color: rgba(255,255,255,0.7); }
+  .header-badge { background: var(--gold); color: white; font-size: 12px; font-weight: 600; padding: 4px 14px; border-radius: 20px; }
+  .page-body { max-width: 1400px; margin: auto; padding: 24px; }
+  .tabs {
+    display: flex;
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 5px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    width: 100%;
+  }
+  .tab-btn {
+    flex: 1 1 0;
+    min-width: 120px;
+    padding: 10px 18px;
+    border-radius: var(--radius-lg);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    background: rgba(255,255,255,0.7);
+    color: var(--text-muted);
+    transition: transform 0.25s ease, background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+    backdrop-filter: blur(10px);
+  }
+  .tab-btn:hover { color: var(--navy); background: rgba(24,95,165,0.14); border-color: rgba(24,95,165,0.22); transform: translateY(-1px); }
+  .tab-btn.active { background: linear-gradient(135deg, #0B3D6E, #185FA5); color: white; border-color: rgba(255,255,255,0.25); box-shadow: 0 18px 40px rgba(0,0,0,0.12); transform: translateY(-1px); }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .status-en-instruction { background: rgba(255,193,7,0.14); color: #B26D00; }
+  .status-complete { background: rgba(40,167,69,0.14); color: #1E6B3B; }
+  .status-arrete { background: rgba(23,162,184,0.12); color: #0F5C6D; }
+  .status-rejete { background: rgba(220,53,69,0.12); color: #A2202D; }
+  .modal {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(12, 30, 70, 0.55);
+    backdrop-filter: blur(10px);
+    z-index: 10000;
+    padding: 24px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  body.modal-open {
+    overflow: hidden;
+  }
+  .modal.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .modal.hidden {
+    display: none;
+  }
+  .modal-card {
+    width: min(520px, 100%);
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    border-radius: 24px;
+    box-shadow: 0 32px 120px rgba(15, 23, 42, 0.22);
+    overflow: hidden;
+    border: 1px solid rgba(11, 61, 110, 0.1);
+    transform: translateY(30px);
+    opacity: 0;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+  }
+  .modal.show .modal-card {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 24px 24px 8px;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .modal-header h3 { margin-bottom: 4px; font-size: 20px; letter-spacing: -0.03em; }
+  .modal-header p { margin: 0; color: var(--text-muted); font-size: 13px; }
+  .modal-close {
+    background: rgba(11, 61, 110, 0.06);
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    font-size: 18px;
+    cursor: pointer;
+    color: var(--text);
+    transition: background 0.2s ease, transform 0.2s ease;
+  }
+  .modal-close:hover { background: rgba(11, 61, 110, 0.12); transform: scale(1.05); }
+  .modal-body { padding: 0 24px 16px; }
+  .modal-body label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--text); }
+  .modal-input {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(20, 60, 110, 0.12);
+    background: #fbfcff;
+    font-size: 14px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .modal-input:focus {
+    border-color: var(--navy);
+    box-shadow: 0 0 0 4px rgba(24, 95, 165, 0.08);
+  }
+  .modal-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 24px 24px;
+    border-top: 1px solid var(--border-light);
+    background: var(--surface);
+  }
+  .modal-actions .btn { min-width: 110px; }
+  .btn-icon {
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    font-size: 18px;
+    padding: 0;
+  }
+  .btn-icon.btn-outline { border-color: var(--border); }
+  .btn-icon:hover { transform: scale(1.05); }
+  .status-incomplete { background: rgba(255,111,0,0.12); color: #8C4800; }
+  .status-quittance-non-payee { background: rgba(232,62,140,0.12); color: #8B1B66; }
+  .status-en-signature { background: rgba(156,39,176,0.12); color: #4E1F5E; }
+  .table-wrap table { width: 100%; min-width: 720px; border-collapse: collapse; }
+  .table-wrap th, .table-wrap td { padding: 12px 10px; border-bottom: 1px solid var(--border-light); }
+  .table-wrap thead th { background: rgba(11,61,110,0.95); color: white; position: sticky; top: 0; z-index: 1; }
+  .table-wrap tbody tr:hover { background: rgba(24,95,165,0.08); }
+  .table-wrap tbody tr td:first-child { font-weight: 600; }
+  .card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    animation: fadeInUp 0.45s ease both;
+  }
+  .card:hover { transform: translateY(-6px); box-shadow: 0 24px 65px rgba(11,61,110,0.16); }
+  .list-toolbar input, .field input, .field select, .field textarea { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+  .list-toolbar input:focus, .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--navy-mid); box-shadow: 0 0 0 2px rgba(24,95,165,0.12); }
+  .btn-active-filter { background: var(--navy); color: white; border-color: transparent; }
+  .page-body { background: linear-gradient(180deg, #F9FBFF 0%, #EDF4FB 100%); }
+  body { background: linear-gradient(180deg, #DCE8F8 0%, #FFFFFF 35%, #F7F9FC 100%); }
+  .header-inner { background: transparent; }
+  .page-header { background: linear-gradient(135deg, #0B3D6E, #185FA5); }
+  /* .count badge removed — no visual counter next to tab buttons */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .card-header {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .card-header-icon { width: 34px; height: 34px; background: rgba(255,255,255,0.15); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .card-header-text h2 { font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 600; color: white; }
+  .card-header-text p { font-size: 12px; color: rgba(255,255,255,0.7); }
+  .card-body { padding: 26px 24px; }
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--navy);
+    margin: 20px 0 16px 0;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--navy-light);
+  }
+  .section-label:first-of-type { margin-top: 0; }
+  .section-label::before { content: ''; width: 4px; height: 16px; background: var(--gold); border-radius: 2px; }
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g3 { grid-template-columns: 1fr 1fr 1fr; }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  .g5 { grid-template-columns: repeat(5, 1fr); }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 11px; font-weight: 600; color: var(--text-muted); }
+  .field label .req { color: var(--sen-red); }
+  .field input, .field select, .field textarea {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) + 2px);
+    font-size: 13px;
+    font-family: 'Source Sans 3', sans-serif;
+    width: 100%;
+    background: var(--surface-soft);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--navy-mid); box-shadow: 0 0 0 4px rgba(24,95,165,0.12); transform: translateY(-1px); }
+  .avis-group {
+    background: var(--navy-xlight);
+    padding: 16px;
+    border-radius: var(--radius);
+    margin: 8px 0 4px;
+  }
+  .avis-selector-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .avis-selector-row select {
+    flex: 1;
+    min-width: 240px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+  .avis-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .avis-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    box-shadow: 0 10px 25px rgba(18, 44, 80, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .avis-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .avis-card-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--navy);
+  }
+  .avis-card-status {
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--navy-xlight);
+    padding: 6px 10px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .avis-card select {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-size: 12px;
+  }
+  .avis-card .avis-remove-btn {
+    margin-left: auto;
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+  .avis-card-note {
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .avis-card-note label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+  .avis-card-note input {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-size: 12px;
+  }
+  .avis-card .avis-note {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .stat-card { background: white; border-radius: var(--radius); padding: 16px; text-align: center; border: 1px solid var(--border); box-shadow: var(--shadow); }
+  .stat-number { font-size: 28px; font-weight: 700; color: var(--navy); }
+  .stat-label { font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin-top: 6px; }
+  .chart-container { position: relative; height: 300px; margin-bottom: 28px; background: white; border-radius: var(--radius-lg); padding: 20px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+  @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
+  .key-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .key-stat { 
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%); 
+    color: white; 
+    padding: 20px; 
+    border-radius: var(--radius-lg); 
+    text-align: center; 
+    box-shadow: 0 18px 40px rgba(11,61,110,0.12); 
+    animation: bounceIn 0.6s ease-out forwards;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+  .key-stat::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    animation: shimmer 3s infinite;
+  }
+  .key-stat:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 24px 50px rgba(11,61,110,0.2);
+  }
+  .key-stat-value { 
+    font-size: 28px; 
+    font-weight: 800; 
+    margin-bottom: 4px; 
+    animation: countUp 0.8s ease-out;
+    position: relative;
+    z-index: 1;
+  }
+  .key-stat-label { 
+    font-size: 11px; 
+    text-transform: uppercase; 
+    opacity: 0.9; 
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    position: relative;
+    z-index: 1;
+  }
+  .key-stat-icon {
+    font-size: 18px;
+    margin-bottom: 8px;
+    animation: pulse 2s ease-in-out infinite;
+    position: relative;
+    z-index: 1;
+  }
+  .key-stat.accent1 { background: linear-gradient(135deg, #FF6B6B 0%, #FF8E72 100%); }
+  .key-stat.accent2 { background: linear-gradient(135deg, #4ECDC4 0%, #44A5C2 100%); }
+  .key-stat.accent3 { background: linear-gradient(135deg, #F7B731 0%, #F79F1F 100%); }
+  .key-stat.accent4 { background: linear-gradient(135deg, #5F27CD 0%, #341F97 100%); }
+  .key-stat.accent5 { background: linear-gradient(135deg, #00D2D3 0%, #23B7D5 100%); }
+  .key-stat.accent6 { background: linear-gradient(135deg, #A8E063 0%, #56AB2F 100%); }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-light);
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 18px;
+    border-radius: calc(var(--radius) + 2px);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    box-shadow: 0 10px 24px rgba(11,61,110,0.06);
+  }
+  .btn-primary { background: var(--navy); color: white; }
+  .btn-primary:hover { background: #0F4F8A; transform: translateY(-1px); }
+  .btn-success { background: var(--success-light); color: var(--success); border-color: #B5DBCA; }
+  .btn-success:hover { background: #DDF2E8; transform: translateY(-1px); }
+  .btn-danger { background: var(--danger-light); color: var(--danger); border-color: #F5C6C3; }
+  .btn-danger:hover { background: #FEE8E8; transform: translateY(-1px); }
+  .btn-outline { background: var(--surface); color: var(--navy); border-color: var(--border); }
+  .btn-outline:hover { background: #f3f7ff; transform: translateY(-1px); }
+  .btn-active-filter { background: var(--navy); color: white; border-color: transparent; }
+  .btn-sm {
+    padding: 4px 8px;
+    font-size: 11px;
+    border-radius: var(--radius);
+  }
+  #dossier_info {
+    border-left: 4px solid var(--navy);
+  }
+  #dossier_info strong {
+    color: var(--navy);
+    font-weight: 600;
+  }
+  #dossier_info span {
+    color: var(--text);
+  }
+  
+  /* Modal pour l'historique */
+  #historique_modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+  }
+  #historique_modal.show {
+    display: flex;
+  }
+  #historique_modal_content {
+    background: white;
+    border-radius: var(--radius-lg);
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+  }
+  #historique_modal_header {
+    background: var(--navy);
+    color: white;
+    padding: 20px 24px;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  #historique_modal_header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+  }
+  #historique_modal_close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+  }
+  #historique_modal_body {
+    padding: 20px 24px;
+  }
+  .historique_entry {
+    padding: 12px;
+    border-left: 3px solid var(--navy-light);
+    margin-bottom: 12px;
+    background: var(--navy-xlight);
+    border-radius: var(--radius);
+  }
+  .historique_entry_time {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+  .historique_entry_action {
+    font-size: 12px;
+    color: var(--navy);
+    font-weight: 600;
+    margin-top: 4px;
+  }
+  .historique_entry_user {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+  .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); max-height: 500px; overflow-y: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  thead { background: var(--navy); position: sticky; top: 0; }
+  thead th { padding: 8px 6px; text-align: left; font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.85); white-space: nowrap; }
+  tbody tr { border-bottom: 1px solid var(--border-light); cursor: pointer; }
+  tbody tr:hover { background: var(--navy-xlight); }
+  tbody td { padding: 8px 6px; white-space: nowrap; }
+  .td-num { font-weight: 700; color: var(--navy); font-family: monospace; }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes glowPulse {
+    from { box-shadow: 0 18px 40px rgba(11,61,110,0.12); }
+    to { box-shadow: 0 28px 55px rgba(11,61,110,0.22); }
+  }
+  @keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes countUp {
+    0% { transform: scale(0.8); opacity: 0; }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  @keyframes shimmer {
+    0% { background-position: -1000px 0; }
+    100% { background-position: 1000px 0; }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+  @keyframes bounceIn {
+    0% { transform: scale(0); opacity: 0; }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .empty-state { text-align: center; padding: 48px; color: var(--text-muted); }
+  .search-wrap { flex: 1; position: relative; }
+  .search-wrap input { width: 100%; padding: 8px 12px 8px 32px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 12px; }
+  .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 12px; }
+  .list-toolbar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+  #toast {
+    position: fixed; bottom: 24px; right: 24px;
+    padding: 10px 18px; border-radius: var(--radius);
+    font-size: 12px; font-weight: 500; z-index: 1000;
+    transform: translateY(20px); opacity: 0; transition: 0.3s;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  #toast.success { background: var(--success); color: white; }
+  #toast.error { background: var(--danger); color: white; }
+  #toast.info { background: var(--navy); color: white; }
+  @media (max-width: 900px) { .g4, .g5 { grid-template-columns: repeat(2,1fr); } .g3 { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 600px) { .g2, .g3, .g4, .g5 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header class="page-header">
+  <div class="header-flag"><span style="background:#00853F;"></span><span style="background:#FDEF42;"></span><span style="background:#E31B23;"></span></div>
+  <div class="header-inner">
+    <img src="images/senegal.png" alt="Drapeau du Sénégal" class="header-seal">
+    <div class="header-text">
+      <div class="republic">République du Sénégal · Un Peuple · Un But · Une Foi</div>
+      <h1>Ministère de l'Urbanisme, des Collectivités Territoriales</h1>
+      <div class="sub">Division Régionale de l'Urbanisme, du Logement et de l'Hygiène Publique de Thiès</div>
+    </div>
+    <div class="header-badge">MUCTAT</div>
+    <div style="display: flex; align-items: center; gap: 12px; color: white; font-size: 12px;">
+      <span>👑 <span id="user-fullname">Administrateur</span></span>
+      <button onclick="logout()" style="padding: 6px 12px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 600;">Déconnexion</button>
+    </div>
+  </div>
+</header>
+<main class="page-body">
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="saisie" onclick="showTab('saisie')"><span>📋</span> Formulaire</button>
+    <button class="tab-btn" data-tab="stats" onclick="showTab('stats')"><span>📊</span> Dashboard </button>
+    <button class="tab-btn" data-tab="db" onclick="showTab('db')"><span>🗄️</span> Base de données</button>
+    <button class="tab-btn" data-tab="liste" onclick="showTab('liste')"><span>📁</span> Archives</button>
+    <button class="tab-btn" data-tab="users" onclick="showTab('users')"><span>👥</span> Utilisateurs</button>
+
+
+  </div>
+
+  <!-- VUE SAISIE -->
+  <div id="view-saisie">
+    <div class="card">
+      <div class="card-header"><div class="card-header-icon">🏛️</div><div class="card-header-text"><h2>Dossier d'Urbanisme - Thiès</h2></div></div>
+      <div class="card-body">
+        <div class="section-label">Identification</div>
+        <div class="grid g3">
+          <div class="field"><label>N° ORDRE</label><input type="text" id="ordre"></div>
+          <div class="field"><label>N° DOSSIER <span class="req">*</span></label><input type="text" id="num_dossier"></div>
+          <div class="field"><label>Date d'introduction</label><input type="date" id="date_intro"></div>
+        </div>
+        <div class="grid g3">
+          <div class="field"><label>N° de parcelle</label><input type="text" id="num_parcelle"></div>
+          <div class="field"><label>COMMUNE</label>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <select id="commune" style="flex:1;"></select>
+              <button type="button" onclick="ajouterCommune()" title="Ajouter une commune" class="btn btn-sm btn-outline btn-icon">+</button>
+            </div>
+          </div>
+          <div class="field"><label>LOTISSEMENT</label>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <select id="lotissement" style="flex:1;"></select>
+              <button type="button" onclick="ajouterLotissement()" title="Ajouter un lotissement" class="btn btn-sm btn-outline btn-icon">+</button>
+            </div>
+          </div>
+        </div>
+        <div class="grid g4">
+          <div class="field"><label>Civilité</label><select id="civilite" onchange="updateFormLabels(); toggleDeposantField()"><option value="">-- Sélection --</option><option>Monsieur </option><option>Madame </option><option>Entreprise</option><option>Organisation</option></select></div>
+          <div class="field"><label id="label_requerant">Nom Requérant</label><input type="text" id="requerant"></div>
+          <div class="field"><label>Tél Requérant</label><input type="text" id="tel_requerant"></div>
+        </div>
+        <div class="grid g3">
+          <div class="field" id="depose_par_field" style="display:none;"><label>Déposé par</label><select id="depose_par" onchange="toggleDeposantField()"><option value="PROPRIETAIRE">Propriétaire</option><option value="AUTRE">Autre personne</option></select></div>
+          <div class="field" id="depose_par_label_field" style="display:none;"><label>Déposé par</label><div style="padding: 10px 12px; background: #fbfcff; border: 1px solid rgba(20, 60, 110, 0.12); border-radius: 8px; font-weight: 500;" id="depose_par_label_text">Lui-même</div></div>
+          <div class="field" id="representant_field" style="display:none;"><label>Représentant</label><input type="text" id="representant" placeholder="Nom du représentant"></div>
+          <div class="field" id="nom_deposant_field" style="display:none;"><label id="label_nom_deposant">Nom du déposant</label><input type="text" id="nom_deposant"></div>
+        </div>
+        <div class="section-label">Caractéristiques projet</div>
+        <div class="grid g4">
+          <div class="field"><label>Superficie parcelle (m²)</label><input type="text" id="superficie_parcelle"></div>
+          <div class="field"><label>Superficie bâtie (m²)</label><input type="text" id="superficie_batie"></div>
+          <div class="field"><label>Nombre de niveaux</label><select id="nb_niveaux"><option value="">-- Sélection --</option><option value="0">RDC</option><option value="1">R+1</option><option value="2">R+2</option><option value="3">R+3</option><option value="4">R+4</option><option value="5">R+5</option><option value="6">R+6</option><option value="7">R+7</option><option value="8">R+8</option><option value="9">R+9</option><option value="10">R+10</option></select></div>
+          <div class="field"><label>USAGE</label>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <select id="usage" style="flex:1;"></select>
+              <button type="button" onclick="ajouterUsage()" title="Ajouter un usage" class="btn btn-sm btn-outline btn-icon">+</button>
+            </div>
+          </div>
+        </div>
+        <div class="grid g2">
+          <div class="field"><label>TYPE DE DEMANDE <span class="req">*</span></label><select id="type_demande" onchange="toggleTypeDemandeFields()" required><option value="">-- Sélection --</option><option value="CONSTRUCTION">Construction</option><option value="TRANSFORMATION">Transformation</option><option value="SURELEVATION">Surélévation</option></select></div>
+        </div>
+        <!-- Champs spécifiques à la transformation -->
+        <div id="transformation_fields" style="display:none;">
+          <div class="section-label">Transformation</div>
+          <div class="grid g3">
+            <div class="field"><label>Usage actuel</label><select id="usage_actuel"><option value="">-- Sélection --</option><option>HABITATION</option><option>MIXTE</option><option>COMMERCIAL</option><option>INDUSTRIEL</option><option>ADMINISTRATIF</option><option>SANTE</option><option>EDUCATION</option><option>LOISIR</option></select></div>
+            <div class="field"><label>Usage souhaité</label><select id="usage_souhaite"><option value="">-- Sélection --</option><option>HABITATION</option><option>MIXTE</option><option>COMMERCIAL</option><option>INDUSTRIEL</option><option>ADMINISTRATIF</option><option>SANTE</option><option>EDUCATION</option><option>LOISIR</option></select></div>
+            <div class="field"><label>Niveau de transformation</label><select id="niveau_transformation"><option value="">-- Sélection --</option><option value="0">RDC</option><option value="1">R+1</option><option value="2">R+2</option><option value="3">R+3</option><option value="4">R+4</option><option value="5">R+5</option><option value="6">R+6</option><option value="7">R+7</option><option value="8">R+8</option><option value="9">R+9</option><option value="10">R+10</option></select></div>
+          </div>
+        </div>
+        <!-- Champs spécifiques à la surélévation -->
+        <div id="surelevation_fields" style="display:none;">
+          <div class="section-label">Surélévation</div>
+          <div class="grid g2">
+            <div class="field"><label>Niveaux actuels</label><select id="nb_niveaux_actuel"><option value="">-- Sélection --</option><option value="0">RDC</option><option value="1">R+1</option><option value="2">R+2</option><option value="3">R+3</option><option value="4">R+4</option><option value="5">R+5</option></select></div>
+            <div class="field"><label>Niveaux après surélévation</label><select id="nb_niveaux_apres"><option value="">-- Sélection --</option><option value="1">R+1</option><option value="2">R+2</option><option value="3">R+3</option><option value="4">R+4</option><option value="5">R+5</option><option value="6">R+6</option></select></div>
+          </div>
+        </div>
+        <div class="section-label">Taxes</div>
+        <div class="grid g4">
+          <div class="field"><label>Taxe Urbanisme (FCFA)</label><input type="text" id="taxe_urbanisme"></div>
+          <div class="field"><label>Taxe Municipale (FCFA)</label><input type="text" id="taxe_municipale"></div>
+          <div class="field"><label>Autres Taxes (FCFA)</label><input type="text" id="autres_taxes"></div>
+        </div>
+        <div class="section-label">Suivi dossier</div>
+        <div class="grid g2">
+          <div class="field"><label>SITUATION DOSSIER</label><select id="situation_dossier"><option value="">-- Sélection --</option><option>EN INSTRUCTION</option><option>EN ATTENTE</option><option>COMPLETE</option><option>ARRETE</option><option>REJETE</option><option>INCOMPLETE</option><option>QUITTANCE NON PAYEE</option><option>EN SIGNATURE</option></select></div>
+          <div class="field"><label>DATE TRANSMISSION</label><input type="date" id="date_transmission"></div>
+        </div>
+        <div class="grid g3">
+          <div class="field"><label>Date de Signature</label><input type="date" id="date_signature"></div>
+          <div class="field"><label>N° Arrêté</label><input type="text" id="num_arrete"></div>
+          <div class="field"><label>RETRAIT (OUI/NON)</label><select id="retrait"><option value="">--</option><option>OUI</option><option>NON</option></select></div>
+        </div>
+        <div class="grid g2">
+          <div class="field"><label>ARCHIVAGE</label><input type="text" id="archived_at" readonly></div>
+          <div class="field"><label>Évolution du dossier</label><input type="text" id="etat_suivi" readonly></div>
+        </div>
+        <div class="section-label">Avis des services</div>
+        <div class="avis-group">
+          <div class="avis-selector-row">
+            <select id="avis_selector">
+              <option value="">-- Sélectionner un service --</option>
+              <option value="urbanisme">URBANISME</option>
+              <option value="cadastre">CADASTRE</option>
+              <option value="domaine">DOMAINE</option>
+              <option value="hygiene">HYGIENE</option>
+              <option value="mairie">MAIRIE</option>
+              <option value="dreec">DREEC</option>
+              <option value="sapeur">SAPEUR</option>
+              <option value="ageroute">AGEROUTE</option>
+              <option value="snhlm">Sn HLM</option>
+              <option value="tourisme">TOURISME</option>
+            </select>
+            <button class="btn btn-outline" onclick="ajouterAvis()">➕ Ajouter avis</button>
+          </div>
+
+          <div id="avis_container" class="avis-grid">
+            <!-- Les avis seront ajoutés dynamiquement ici -->
+          </div>
+        </div>
+        <div class="field"><label>IA (Informations additionnelles)</label><input type="text" id="ia"></div>
+        <input type="hidden" id="dossier_id">
+        
+        <!-- Affichage de l'historique des modifications (géré côté client) -->
+        <div id="dossier_info" style="margin-top: 20px; padding: 16px; background: var(--navy-xlight); border-radius: var(--radius); display: none;">
+          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">ℹ️ INFORMATIONS DU DOSSIER</div>
+          <div class="grid g2">
+            <div><strong>Créé le :</strong> <span id="display_created_at">-</span></div>
+            <div><strong>Dernière modification :</strong> <span id="display_updated_at">-</span></div>
+            <div><strong>Modifié par :</strong> <span id="display_modified_by">-</span></div>
+            <div><strong>Nombre de modifications :</strong> <span id="display_modification_count">0</span></div>
+            <div colspan="2"><strong>Tous les contributeurs :</strong> <span id="display_all_users">-</span></div>
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center;">
+            <button class="btn btn-outline" style="font-size: 11px;" onclick="afficherHistorique()">📋 Voir l'historique complet</button>
+            <button class="btn btn-outline" style="font-size: 11px;" onclick="rafraichirHistorique()">🔄 Rafraîchir l'historique</button>
+          </div>
+        </div>
+        
+        <div class="actions">
+          <button class="btn btn-primary" onclick="genererRecuPDF()"><span>Récépissé de dépôt </span> </button>
+          <button class="btn btn-success" onclick="enregistrerDossier()"><span>💾</span> Enregistrer</button>
+          <button class="btn btn-outline" onclick="rechercherDossier()"><span>🔍</span> Rechercher</button>
+          <button class="btn btn-danger" onclick="supprimerDossier()"><span>🗑️</span> Supprimer</button>
+          <button class="btn btn-outline" onclick="resetForm(); document.getElementById('num_dossier')?.focus();"><span>🔄</span> Nouveau dossier</button>
+          <button class="btn btn-outline" onclick="resetForm()"><span>✖</span> Effacer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VUE LISTE -->
+  <div id="view-liste" style="display:none;">
+    <div class="card">
+      <div class="card-header"><div class="card-header-icon">📂</div><div class="card-header-text"><h2>Dossiers archivés</h2><p>Seuls les dossiers en statut COMPLET sont affichés ici</p></div></div>
+      <div class="card-body">
+        <div class="list-toolbar">
+          <div class="search-wrap"><span class="search-icon">🔍</span><input type="text" id="search_input" oninput="afficherListe(this.value, document.getElementById('filter_date').value)"></div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); white-space: nowrap;">Filtre par date:</label>
+            <select id="filter_date" style="padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 12px;" onchange="afficherListe(document.getElementById('search_input').value, this.value)">
+              <option value="">Tous les dossiers</option>
+              <option value="today">Aujourd'hui</option>
+              <option value="custom">Date personnalisée</option>
+            </select>
+            <input type="date" id="filter_date_custom" style="padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 12px; display: none;" onchange="afficherListe(document.getElementById('search_input').value, 'custom')">
+          </div>
+          <button class="btn btn-primary" onclick="showTab('saisie'); resetForm();">+ Nouveau</button>
+        </div>
+        <div id="liste_container"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VUE STATS -->
+  <div id="view-stats" style="display:none;">
+    <div class="card">
+      <div class="card-header"><div class="card-header-icon">📊</div><div class="card-header-text"><h2>Dashboard</h2><p>Analyse complète des dossiers </p></div></div>
+      <div class="card-body">
+        <!-- Indicateurs clés -->
+        <div class="key-stats" id="key-stats-container"></div>
+        
+        <!-- Graphiques -->
+        <div class="charts-grid">
+          <div class="chart-container">
+            <canvas id="chartSituation"></canvas>
+          </div>
+          <div class="chart-container">
+            <canvas id="chartUsage"></canvas>
+          </div>
+          <div class="chart-container">
+            <canvas id="chartCommunes"></canvas>
+          </div>
+        </div>
+
+        <!-- Tableau des revenus -->
+        <div style="margin-top: 24px;">
+          <div style="font-size: 12px; font-weight: 600; color: var(--navy); margin-bottom: 12px;">💰 REVENUS FISCAUX</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Type de taxe</th><th>Total (FCFA)</th><th>Nombre de dossiers</th><th>Moyenne par dossier</th></tr></thead>
+              <tbody id="tax-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tableau des dossiers par mois -->
+        <div style="margin-top: 24px;">
+          <div style="font-size: 12px; font-weight: 600; color: var(--navy); margin-bottom: 12px;">📅 DOSSIERS PAR MOIS</div>
+          <div class="table-wrap" style="overflow-x: auto;">
+            <table id="monthly-table">
+              <thead><tr><th>Mois</th><th>En Instruction</th><th>En attente</th><th>Complète</th><th>Arrêtée</th><th>Rejetée</th><th>Incomplete</th><th>Quittance Non Payée</th><th>En Signature</th><th>TOTAL</th></tr></thead>
+              <tbody id="monthly-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Résumé des statuts -->
+        <div style="margin-top: 24px;">
+          <div style="font-size: 12px; font-weight: 600; color: var(--navy); margin-bottom: 12px;">📋 RÉSUMÉ DES STATUTS</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Statut</th><th>Nombre</th><th>Pourcentage</th><th>Graphique</th></tr></thead>
+              <tbody id="status-summary-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VUE UTILISATEURS -->
+  <div id="view-users" style="display:none;">
+    <div class="card">
+      <div class="card-header"><div class="card-header-icon">👥</div><div class="card-header-text"><h2>Gestion des Utilisateurs</h2><p>Créer et gérer les comptes consultant et admin</p></div></div>
+      <div class="card-body">
+        <div class="section-label">Créer un nouveau compte</div>
+        <div class="grid g2">
+          <div class="field"><label>Nom complet <span class="req">*</span></label><input type="text" id="new_user_fullname"></div>
+          <div class="field"><label>Nom d'utilisateur <span class="req">*</span></label><input type="text" id="new_user_username"></div>
+          <div class="field"><label>Email <span class="req">*</span></label><input type="email" id="new_user_email"></div>
+          <div class="field"><label>Rôle <span class="req">*</span></label><select id="new_user_role"><option value="CONSULTANT">CONSULTANT</option><option value="ADMIN">ADMIN</option></select></div>
+          <div class="field"><label>Mot de passe <span class="req">*</span></label><input type="password" id="new_user_password"></div>
+          <div class="field"><label>Confirmer le mot de passe <span class="req">*</span></label><input type="password" id="new_user_confirm"></div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-success" onclick="creerCompteUtilisateur()"><span>👤</span> Créer le compte</button>
+          <button class="btn btn-outline" onclick="resetFormUtilisateur()"><span>✖</span> Effacer</button>
+        </div>
+
+        <div class="section-label">Comptes existants</div>
+        <div id="users_list_container"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VUE BASE DE DONNÉES -->
+  <div id="view-db" style="display:none;">
+    <div class="card">
+      <div class="card-header"><div class="card-header-icon">🗄️</div><div class="card-header-text"><h2>Base de données</h2><p>Vue d'ensemble de tous les dossiers</p></div></div>
+      <div class="card-body">
+        <!-- Onglets de filtrage -->
+        <div style="margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+          <button class="btn" style="background: var(--navy); color: white; font-size: 11px;" id="filter_all" onclick="filtrerParStatut('TOUS')">📋 Tous les dossiers</button>
+          <button class="btn btn-outline" style="font-size: 11px;" id="filter_instruction" onclick="filtrerParStatut('EN INSTRUCTION')">⏳ En Instruction</button>
+          <button class="btn btn-outline" style="font-size: 11px;" id="filter_signature" onclick="filtrerParStatut('EN SIGNATURE')">✍️ En Signature</button>
+          <button class="btn btn-outline" style="font-size: 11px;" id="filter_rejected" onclick="filtrerParStatut('REJETE')">❌ Rejetés</button>
+          <button class="btn btn-outline" style="font-size: 11px;" id="filter_incomplete" onclick="filtrerParStatut('INCOMPLETE')">⚠️ Incomplets</button>
+          <button class="btn btn-outline" style="font-size: 11px;" onclick="exportDbToCsv()">📤 Exporter la base</button>        </div>
+        
+        <!-- Filtres avancés -->
+        <div class="card" style="margin-top: 16px;">
+          <div class="card-header" style="padding: 16px 24px;">
+            <div class="card-header-icon">🔍</div>
+            <div class="card-header-text">
+              <h2 style="font-size: 14px;">Filtres avancés</h2>
+              <p style="font-size: 11px;">Filtrer les dossiers par critères spécifiques</p>`
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="grid g5" style="margin-bottom: 16px;">
+              <div class="field">
+                <label style="font-size: 11px; font-weight: 600; color: var(--navy);">🏛️ Commune</label>
+                <select id="filter_commune" onchange="filtrerDbTable()" class="field-input">
+                  <option value="">Toutes les communes</option>
+                </select>
+              </div>
+              <div class="field">
+                <label style="font-size: 11px; font-weight: 600; color: var(--navy);">🏘️ Lotissement</label>
+                <select id="filter_lotissement" onchange="filtrerDbTable()" class="field-input">
+                  <option value="">Tous les lotissements</option>
+                </select>
+              </div>
+              <div class="field">
+                <label style="font-size: 11px; font-weight: 600; color: var(--navy);">📅 Année</label>
+                <select id="filter_annee" onchange="filtrerDbTable()" class="field-input">
+                  <option value="">Toutes les années</option>
+                </select>
+              </div>
+              <div class="field">
+                <label style="font-size: 11px; font-weight: 600; color: var(--navy);">📅 Date début</label>
+                <input type="date" id="filter_date_debut" onchange="filtrerDbTable()" class="field-input">
+              </div>
+              <div class="field">
+                <label style="font-size: 11px; font-weight: 600; color: var(--navy);">📅 Date fin</label>
+                <input type="date" id="filter_date_fin" onchange="filtrerDbTable()" class="field-input">
+              </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="font-size: 12px; color: var(--text-muted);">
+                <span id="filtered_count">0</span> dossier(s) affiché(s)
+              </div>
+              <button class="btn btn-outline" style="font-size: 11px;" onclick="clearFilters()">
+                🧹 Effacer tous les filtres
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Barre de recherche et rafraîchir -->
+        <div class="list-toolbar">
+          <div class="search-wrap"><span class="search-icon">🔍</span><input type="text" id="db_search_input" oninput="filtrerDbTable()"></div>
+          <button class="btn btn-outline" style="font-size: 11px;" onclick="afficherBaseDeDonnees('dossiers')">🔄 Rafraîchir</button>
+        </div>
+        <div id="db_table_container"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Modal Historique des modifications -->
+<div id="historique_modal">
+  <div id="historique_modal_content">
+    <div id="historique_modal_header">
+      <h2>📋 Historique des modifications</h2>
+      <button id="historique_modal_close" onclick="fermerHistorique()">✕</button>
+    </div>
+    <div id="historique_modal_body"></div>
+  </div>
+</div>
+
+<!-- Signature développeur -->
+<div style="position: fixed; bottom: 10px; right: 10px; font-size: 10px; color: rgba(0,0,0,0.5); font-family: 'Source Sans 3', sans-serif; z-index: 1000;">
+  Développé par MMS © 2026
+</div>
+
+<div id="toast"></div>
+
+<script src="js/supabase-client.js"></script>
+<script>
+  // Déterminer le chemin API en fonction du contexte
+  function getApiUrl(path) {
+    if (window.location.pathname.includes('/web/')) {
+      return '/web/api/index.php?route=' + path;
+    }
+    return '/api/index.php?route=' + path;
+  }
+
+  // ===================================================================
+  // CONFIGURATION SUPABASE
+  // ===================================================================
+  let loadingFromDB = false;
+  
+  // Charger les dossiers depuis Supabase au démarrage
+  async function chargerDossiersSupabase() {
+    loadingFromDB = true;
+    try {
+      const result = await SupabaseClient.getDossiers();
+      if(Array.isArray(result)) {
+        dossiers = result;
+        console.log('✅ ' + dossiers.length + ' dossiers chargés depuis Supabase');
+      } else {
+        console.warn('Supabase vide, données locales gardées');
+      }
+    } catch(e) {
+      console.error('Erreur chargement Supabase:', e);
+    }
+    loadingFromDB = false;
+    updateBadge();
+  }
+
+  let communeOptions = [];
+  let lotissementOptions = [];
+  let usageOptions = [];
+
+  async function chargerCommunesLotissements() {
+    await Promise.all([chargerCommunes(), chargerLotissements()]);
+  }
+
+  function sortByName(items) {
+    return items.slice().sort((a, b) => {
+      const nameA = String(a.nom || '').toLowerCase();
+      const nameB = String(b.nom || '').toLowerCase();
+      return nameA.localeCompare(nameB, 'fr', { sensitivity: 'base' });
+    });
+  }
+
+  async function chargerCommunes() {
+    try {
+      const url = getApiUrl('communes') + '&method=GET';
+      const response = await fetch(url);
+      const text = await response.text();
+      const contentType = response.headers.get('content-type');
+      
+      console.log('GET communes - URL:', url);
+      console.log('GET communes - Status:', response.status, 'Type:', contentType);
+      console.log('GET communes - Response:', text.substring(0, 200));
+      
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('❌ Serveur a retourné du contenu non-JSON:', text);
+        communeOptions = [];
+        populateCommuneSelect();
+        return;
+      }
+      
+      const result = JSON.parse(text);
+      if (result.status === 200 && Array.isArray(result.data)) {
+        communeOptions = sortByName(result.data);
+      } else {
+        communeOptions = [];
+      }
+      populateCommuneSelect();
+    } catch (error) {
+      console.error('Erreur chargement communes:', error);
+      communeOptions = [];
+      populateCommuneSelect();
+    }
+  }
+
+  async function chargerLotissements() {
+    try {
+      const url = getApiUrl('lotissements') + '&method=GET';
+      const response = await fetch(url);
+      const text = await response.text();
+      const contentType = response.headers.get('content-type');
+      
+      console.log('GET lotissements - URL:', url);
+      console.log('GET lotissements - Status:', response.status, 'Type:', contentType);
+      console.log('GET lotissements - Response:', text.substring(0, 200));
+      
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('❌ Serveur a retourné du contenu non-JSON:', text);
+        lotissementOptions = [];
+        populateLotissementSelect();
+        return;
+      }
+      
+      const result = JSON.parse(text);
+      if (result.status === 200 && Array.isArray(result.data)) {
+        lotissementOptions = sortByName(result.data);
+      } else {
+        lotissementOptions = [];
+      }
+      populateLotissementSelect();
+    } catch (error) {
+      console.error('Erreur chargement lotissements:', error);
+      lotissementOptions = [];
+      populateLotissementSelect();
+    }
+  }
+
+  function populateCommuneSelect() {
+    const select = document.getElementById('commune');
+    if (!select) return;
+    select.innerHTML = '<option value="">-- Sélection --</option>' + communeOptions.map(c => `<option value="${escapeHtml(c.nom)}" data-id="${c.id}">${escapeHtml(c.nom)}</option>`).join('');
+  }
+
+  function populateLotissementSelect() {
+    const select = document.getElementById('lotissement');
+    if (!select) return;
+    select.innerHTML = '<option value="">-- Sélection --</option>' + lotissementOptions.map(l => `<option value="${escapeHtml(l.nom)}" data-id="${l.id}">${escapeHtml(l.nom)}</option>`).join('');
+  }
+
+  function populateUsageSelect() {
+    const select = document.getElementById('usage');
+    if (!select) return;
+    select.innerHTML = '<option value="">-- Sélection --</option>' + usageOptions.map(u => `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`).join('');
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"]+/g, function(match) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[match];
+    });
+  }
+
+  async function parseApiResponse(response) {
+    const text = await response.text();
+    if (!response.ok) {
+      console.error('API response status:', response.status, response.statusText);
+      console.error('API response body:', text);
+    }
+    try {
+      return JSON.parse(text);
+    } catch (error) {
+      console.error('Réponse brute de l\'API non JSON :', text);
+      throw error;
+    }
+  }
+
+  let modalAjoutType = null;
+
+  function ouvrirModalAjout(type) {
+    modalAjoutType = type;
+    const title = type === 'commune' ? 'Ajouter une commune' : (type === 'lotissement' ? 'Ajouter un lotissement' : 'Ajouter un usage');
+    const subtitle = type === 'commune'
+      ? 'Saisissez le nom de la nouvelle commune.'
+      : (type === 'lotissement' ? 'Saisissez le nom du nouveau lotissement.' : 'Saisissez le nom du nouvel usage.');
+    const modal = document.getElementById('modal-ajout');
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-subtitle').textContent = subtitle;
+    document.getElementById('modal-nom').value = '';
+    modal.classList.remove('hidden');
+    document.body.classList.add('modal-open');
+    setTimeout(() => modal.classList.add('show'), 20);
+    setTimeout(() => document.getElementById('modal-nom').focus(), 70);
+    document.addEventListener('keydown', modalKeydownListener);
+  }
+
+  function fermerModalAjout() {
+    modalAjoutType = null;
+    const modal = document.getElementById('modal-ajout');
+    modal.classList.remove('show');
+    document.body.classList.remove('modal-open');
+    setTimeout(() => modal.classList.add('hidden'), 260);
+    document.removeEventListener('keydown', modalKeydownListener);
+  }
+
+  function modalKeydownListener(event) {
+    if (event.key === 'Escape') {
+      fermerModalAjout();
+    } else if (event.key === 'Enter') {
+      const modal = document.getElementById('modal-ajout');
+      if (modal && modal.classList.contains('show')) {
+        event.preventDefault();
+        validerModalAjout();
+      }
+    }
+  }
+
+  async function validerModalAjout() {
+    const nom = document.getElementById('modal-nom').value.trim();
+    if (!nom) {
+      toast('Veuillez saisir un nom', 'error');
+      return;
+    }
+    if (modalAjoutType === 'commune') {
+      await soumettreCommune(nom);
+    } else if (modalAjoutType === 'lotissement') {
+      await soumettreLotissement(nom);
+    } else if (modalAjoutType === 'usage') {
+      await soumettreUsage(nom);
+    }
+    fermerModalAjout();
+  }
+
+  function ajouterCommune() {
+    ouvrirModalAjout('commune');
+  }
+
+  async function soumettreCommune(nom) {
+    try {
+      const response = await fetch('api/index.php?route=communes&method=POST', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nom })
+      });
+      const result = await parseApiResponse(response);
+      if (result.status === 201) {
+        communeOptions = sortByName([...communeOptions, result.data]);
+        populateCommuneSelect();
+        document.getElementById('commune').value = result.data.nom;
+        toast('Commune ajoutée avec succès', 'success');
+      } else if (result.status === 400 && result.message && result.message.includes('existe déjà') && result.data) {
+        const existing = result.data;
+        if (!communeOptions.some(c => c.id === existing.id)) {
+          communeOptions = sortByName([...communeOptions, existing]);
+        }
+        populateCommuneSelect();
+        document.getElementById('commune').value = existing.nom;
+        toast('Commune déjà existante sélectionnée', 'info');
+      } else {
+        toast(result.message || 'Impossible d\'ajouter la commune', 'error');
+      }
+    } catch (error) {
+      console.error('Erreur création commune:', error);
+      toast('Erreur création commune', 'error');
+    }
+  }
+
+  function ajouterLotissement() {
+    ouvrirModalAjout('lotissement');
+  }
+
+  function ajouterUsage() {
+    ouvrirModalAjout('usage');
+  }
+
+  async function soumettreLotissement(nom) {
+    try {
+      const communeSelect = document.getElementById('commune');
+      const selectedCommune = communeSelect?.value || '';
+      const communeOption = communeOptions.find(c => c.nom === selectedCommune);
+      const body = { nom };
+      if (communeOption) body.commune_id = communeOption.id;
+      const response = await fetch('api/index.php?route=lotissements&method=POST', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const result = await parseApiResponse(response);
+      if (result.status === 201) {
+        lotissementOptions = sortByName([...lotissementOptions, result.data]);
+        populateLotissementSelect();
+        document.getElementById('lotissement').value = result.data.nom;
+        toast('Lotissement ajouté avec succès', 'success');
+      } else if (result.status === 400 && result.message && result.message.includes('existe déjà') && result.data) {
+        const existing = result.data;
+        if (!lotissementOptions.some(l => l.id === existing.id)) {
+          lotissementOptions = sortByName([...lotissementOptions, existing]);
+        }
+        populateLotissementSelect();
+        document.getElementById('lotissement').value = existing.nom;
+        toast('Lotissement déjà existant sélectionné', 'info');
+      } else {
+        toast(result.message || 'Impossible d\'ajouter le lotissement', 'error');
+      }
+    } catch (error) {
+      console.error('Erreur création lotissement:', error);
+      toast('Erreur création lotissement', 'error');
+    }
+  }
+
+  async function soumettreUsage(nom) {
+    try {
+      const normalized = nom.trim().toUpperCase();
+      if (!normalized) {
+        toast('Nom invalide', 'error');
+        return;
+      }
+      const url = getApiUrl('usages') + '&method=POST';
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nom: normalized })
+      });
+      const result = await parseApiResponse(response);
+      if (result.status === 201) {
+        // result.data peut être un objet ou un tableau
+        const created = result.data && (result.data.nom || (Array.isArray(result.data) && result.data[0] && result.data[0].nom)) ? (result.data.nom || result.data[0].nom) : normalized;
+        if (!usageOptions.some(u => u.toUpperCase() === String(created).toUpperCase())) {
+          usageOptions = usageOptions.concat([String(created).toUpperCase()]);
+          usageOptions.sort((a,b)=>a.localeCompare(b, 'fr', {sensitivity:'base'}));
+        }
+        populateUsageSelect();
+        document.getElementById('usage').value = String(created).toUpperCase();
+        toast('Usage ajouté', 'success');
+      } else if (result.status === 400 && result.message && result.data) {
+        const existing = result.data;
+        const existingName = existing.nom || (Array.isArray(existing) && existing[0] && existing[0].nom) || normalized;
+        if (!usageOptions.some(u => u.toUpperCase() === String(existingName).toUpperCase())) {
+          usageOptions = usageOptions.concat([String(existingName).toUpperCase()]).sort((a,b)=>a.localeCompare(b, 'fr', {sensitivity:'base'}));
+        }
+        populateUsageSelect();
+        document.getElementById('usage').value = String(existingName).toUpperCase();
+        toast('Usage existant sélectionné', 'info');
+      } else {
+        toast(result.message || 'Impossible d\'ajouter l\'usage', 'error');
+      }
+    } catch (error) {
+      console.error('Erreur ajout usage:', error);
+      toast('Erreur ajout usage', 'error');
+    }
+  }
+
+  function getCommuneIdByName(nom) {
+    const item = communeOptions.find(c => c.nom === nom);
+    return item ? item.id : null;
+  }
+
+  // ----- Usages (client-side list) -----
+  async function chargerUsages() {
+    // Prioriser la récupération depuis l'API 'usages', fallback aux valeurs par défaut + dossiers
+    try {
+      const url = getApiUrl('usages') + '&method=GET';
+      const resp = await fetch(url);
+      const apiResult = await parseApiResponse(resp);
+      if (apiResult.status === 200 && Array.isArray(apiResult.data)) {
+        usageOptions = apiResult.data.map(u => String(u.nom || u).toUpperCase()).filter(x=>x).sort((a,b)=>a.localeCompare(b, 'fr', {sensitivity:'base'}));
+        populateUsageSelect();
+        return;
+      }
+    } catch (e) {
+      console.warn('Impossible de charger les usages depuis l\'API, fallback', e);
+    }
+
+    const defaults = ['HABITATION','MIXTE','COMMERCIAL','INDUSTRIEL','ADMINISTRATIF','SANTE','EDUCATION','LOISIR'];
+    const fromDossiers = Array.isArray(dossiers) ? [...new Set(dossiers.map(d => (d.usage||'').toString().trim()).filter(x=>x))] : [];
+    const merged = Array.from(new Set([...defaults, ...fromDossiers].map(s => s.toString().trim().toUpperCase())));
+    usageOptions = merged.sort((a,b)=>a.localeCompare(b, 'fr', {sensitivity:'base'}));
+    populateUsageSelect();
+  }
+
+  // Sauvegarder un dossier dans Supabase
+  
+  // ============================================================
+  // SYSTÈME DE STOCKAGE ROBUSTE (localStorage + fallback mémoire)
+  // ============================================================
+  const secureStorage = {
+    _cache: {}, // Fallback en mémoire si localStorage indisponible
+    _available: false,
+    
+    init() {
+      try {
+        const test = '__test__';
+        localStorage.setItem(test, test);
+        localStorage.removeItem(test);
+        this._available = true;
+        console.log('✅ localStorage disponible');
+      } catch(e) {
+        this._available = false;
+        console.warn('⚠️ localStorage indisponible - utilisation de la mémoire locale');
+      }
+    },
+    
+    setItem(key, value) {
+      if(this._available) {
+        try {
+          localStorage.setItem(key, value);
+        } catch(e) {
+          console.warn(`Fallback pour ${key}:`, e.message);
+          this._cache[key] = value;
+        }
+      } else {
+        this._cache[key] = value;
+      }
+    },
+    
+    getItem(key) {
+      if(this._available) {
+        try {
+          return localStorage.getItem(key);
+        } catch(e) {
+          console.warn(`Fallback lecture ${key}:`, e.message);
+          return this._cache[key] || null;
+        }
+      } else {
+        return this._cache[key] || null;
+      }
+    },
+    
+    removeItem(key) {
+      if(this._available) {
+        try {
+          localStorage.removeItem(key);
+        } catch(e) {
+          console.warn(`Fallback suppression ${key}:`, e.message);
+          delete this._cache[key];
+        }
+      } else {
+        delete this._cache[key];
+      }
+    }
+  };
+  
+  secureStorage.init();
+  
+  // Initialiser le tableau des dossiers (AVANT tout usage)
+  var dossiers = [];
+  var currentDbStatusFilter = 'TOUS';
+  
+  // Initialiser l'historique des dossiers (maintenant géré via API)
+  var currentDossierHistory = [];
+  
+  // Vérifier l'authentification ADMIN
+  function getSessionRaw() {
+    // 1. Essayer paramètres URL d'abord (pour la redirection depuis login)
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionParam = urlParams.get('session');
+      if(sessionParam) {
+        console.log('✅ Session trouvée dans paramètres URL');
+        const decoded = decodeURIComponent(atob(sessionParam));
+        // Sauvegarder dans les autres systèmes si possible
+        saveSessionToAvailableStorage(decoded);
+        return decoded;
+      }
+    } catch(e) {
+      console.warn('Paramètres URL indisponibles:', e);
+    }
+
+    // 2. Essayer cookies
+    try {
+      const cookies = document.cookie.split(';');
+      for(let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if(name === 'muctat_session') {
+          console.log('✅ Session trouvée dans cookies');
+          return decodeURIComponent(atob(value));
+        }
+      }
+    } catch(e) {
+      console.warn('Cookies indisponibles:', e);
+    }
+
+    // 3. Essayer variable globale
+    try {
+      if(window.muctatSession) {
+        console.log('✅ Session trouvée dans variable globale');
+        return window.muctatSession;
+      }
+    } catch(e) {
+      console.warn('Variable globale indisponible:', e);
+    }
+
+    // 4. Fallback vers sessionStorage/localStorage
+    try {
+      const session = sessionStorage.getItem('muctat_session');
+      if(session) return session;
+    } catch(e) {
+      console.warn('sessionStorage non disponible:', e);
+    }
+
+    try {
+      const local = secureStorage.getItem('muctat_session');
+      if(local) return local;
+    } catch(e) {
+      console.warn('localStorage indisponible:', e);
+    }
+
+    console.warn('❌ Aucune session trouvée');
+    return null;
+  }
+
+  function saveSessionToAvailableStorage(data) {
+    // Essayer de sauvegarder dans tous les systèmes disponibles
+    try {
+      document.cookie = 'muctat_session=' + btoa(encodeURIComponent(data)) + '; path=/; max-age=3600; SameSite=Lax';
+    } catch(e) {}
+
+    try {
+      window.muctatSession = data;
+    } catch(e) {}
+
+    try {
+      sessionStorage.setItem('muctat_session', data);
+    } catch(e) {}
+
+    try {
+      secureStorage.setItem('muctat_session', data);
+    } catch(e) {}
+  }
+
+  function checkAdminSession() {
+    const session = getSessionRaw();
+    if(!session) {
+      window.location.href = 'index.html';
+      return false;
+    }
+    try {
+      const user = JSON.parse(session);
+      if(user.role === 'ADMIN') {
+        document.getElementById('user-fullname').textContent = user.fullname || 'Administrateur';
+        return true;
+      }
+    } catch(e) {
+      console.warn('Erreur parsing de session:', e);
+    }
+    clearSession();
+    window.location.href = 'index.html';
+    return false;
+  }
+  
+  function clearSession() {
+    // Supprimer tous les systèmes de stockage
+    try {
+      document.cookie = 'muctat_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      console.log('Cookie de session supprimé');
+    } catch(e) {
+      console.warn('Erreur suppression cookie:', e);
+    }
+
+    try {
+      delete window.muctatSession;
+    } catch(e) {}
+
+    try {
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.delete('session');
+      window.history.replaceState({}, '', currentUrl.toString());
+    } catch(e) {}
+
+    try {
+      sessionStorage.removeItem('muctat_session');
+    } catch(e) {
+      console.warn('Impossible d\'accéder à sessionStorage');
+    }
+
+    try {
+      secureStorage.removeItem('muctat_session');
+    } catch(e) {}
+  }
+
+  function logout() {
+    clearSession();
+    window.location.href = 'index.html?logout=1';
+  }
+  
+  // Fonction pour récupérer les informations de l'utilisateur connecté
+  function getSessionUser() {
+    const session = getSessionRaw();
+    if(!session) return null;
+    try {
+      return JSON.parse(session);
+    } catch(e) {
+      console.warn('Erreur parsing session utilisateur:', e);
+      return null;
+    }
+  }
+  
+  // Charger les dossiers et listes de communes/lotissements au démarrage
+  (async () => {
+    await Promise.all([chargerDossiersSupabase(), chargerCommunesLotissements(), chargerUsages()]);
+    updateBadge();
+  })();
+  
+  checkAdminSession();
+  
+  async function chargerExemples() {
+    // Charger les données locales comme fallback
+    const exemplesLocaux = [
+      {ordre:"1", num_dossier:"1_2026", date_intro:"2026-04-14", num_parcelle:"643", commune:"KEUR MOUSSA", lotissement:"DARAL PEULH 1", requerant:"CHEIKH ABDOUL AHAD MBACKE BA", tel_requerant:"777303772", superficie_parcelle:"200", superficie_batie:"131.70", nb_niveaux:"2", usage:"HABITATION", type_demande:"CONSTRUCTION", usage_actuel:"", usage_souhaite:"", nb_niveaux_actuel:"", nb_niveaux_apres:"", taxe_urbanisme:"5000", taxe_municipale:"15000", autres_taxes:"2000", situation_dossier:"REJETE", date_transmission:"2026-04-10", date_signature:"", num_arrete:"", retrait:"NON", avis_urbanisme:"Defavorable", avis_cadastre:"Favorable", avis_domaine:"Defavorable", avis_hygiene:"Favorable", avis_mairie:"Favorable", avis_dreec:"N/A", avis_sapeur:"N/A", avis_ageroute:"N/A", avis_snhlm:"N/A", avis_tourisme:"N/A", ia:""},
+      {ordre:"2", num_dossier:"2_2026", date_intro:"2026-04-14", num_parcelle:"51", commune:"THIES OUEST", lotissement:"EX GARE ROUTIERE", requerant:"ABDOU NIANG", tel_requerant:"771844043", superficie_parcelle:"500", superficie_batie:"216.8", nb_niveaux:"2", usage:"HABITATION", taxe_urbanisme:"5000", taxe_municipale:"100000", autres_taxes:"5000", situation_dossier:"EN INSTRUCTION", date_transmission:"2026-04-12", date_signature:"", num_arrete:"", retrait:"NON", avis_urbanisme:"Favorable", avis_cadastre:"Favorable", avis_domaine:"Favorable", avis_hygiene:"Favorable", avis_mairie:"N/A", avis_dreec:"N/A", avis_sapeur:"N/A", avis_ageroute:"N/A", avis_snhlm:"N/A", avis_tourisme:"N/A", ia:""},
+      {ordre:"3", num_dossier:"3_2026", date_intro:"2026-04-13", num_parcelle:"120", commune:"THIES", lotissement:"ZONE ARTISANALE", requerant:"MARIE DIOP", tel_requerant:"773456789", superficie_parcelle:"1000", superficie_batie:"800", nb_niveaux:"3", usage:"COMMERCIAL", taxe_urbanisme:"15000", taxe_municipale:"50000", autres_taxes:"10000", situation_dossier:"COMPLETE", date_transmission:"2026-04-11", date_signature:"2026-04-13", num_arrete:"2026-15", retrait:"OUI", avis_urbanisme:"Favorable", avis_cadastre:"Favorable", avis_domaine:"Favorable", avis_hygiene:"Favorable", avis_mairie:"Favorable", avis_dreec:"Favorable", avis_sapeur:"N/A", avis_ageroute:"N/A", avis_snhlm:"N/A", avis_tourisme:"N/A", ia:"Autorisation accordée"},
+      {ordre:"4", num_dossier:"4_2026", date_intro:"2026-04-09", num_parcelle:"203", commune:"MBOUR", lotissement:"CITE DU FLEUVE", requerant:"PAPE SOW", tel_requerant:"775678901", superficie_parcelle:"350", superficie_batie:"250", nb_niveaux:"2", usage:"MIXTE", taxe_urbanisme:"8000", taxe_municipale:"30000", autres_taxes:"3000", situation_dossier:"ARRETE", date_transmission:"2026-04-08", date_signature:"2026-04-09", num_arrete:"2026-12", retrait:"OUI", avis_urbanisme:"Favorable", avis_cadastre:"Favorable", avis_domaine:"Favorable", avis_hygiene:"Favorable", avis_mairie:"Favorable", avis_dreec:"N/A", avis_sapeur:"Favorable", avis_ageroute:"N/A", avis_snhlm:"N/A", avis_tourisme:"N/A", ia:"Arrêté municipal"},
+      {ordre:"5", num_dossier:"5_2026", date_intro:"2026-04-14", num_parcelle:"456", commune:"KAOLACK", lotissement:"QUARTIER NORD", requerant:"FATOU BA", tel_requerant:"777123456", superficie_parcelle:"600", superficie_batie:"450", nb_niveaux:"2", usage:"HABITATION", taxe_urbanisme:"10000", taxe_municipale:"40000", autres_taxes:"5000", situation_dossier:"EN INSTRUCTION", date_transmission:"", date_signature:"", num_arrete:"", retrait:"", avis_urbanisme:"Favorable", avis_cadastre:"Favorable", avis_domaine:"N/A", avis_hygiene:"Favorable", avis_mairie:"Favorable", avis_dreec:"Favorable", avis_sapeur:"N/A", avis_ageroute:"N/A", avis_snhlm:"N/A", avis_tourisme:"N/A", ia:""},
+      {ordre:"6", num_dossier:"6_2026", date_intro:"2026-04-12", num_parcelle:"789", commune:"KEUR MOUSSA", lotissement:"DARAL PEULH 2", requerant:"ALI BAYE", tel_requerant:"778234567", superficie_parcelle:"250", superficie_batie:"180", nb_niveaux:"2", usage:"HABITATION", taxe_urbanisme:"5000", taxe_municipale:"20000", autres_taxes:"2000", situation_dossier:"INCOMPLETE", date_transmission:"2026-04-10", date_signature:"", num_arrete:"", retrait:"NON", avis_urbanisme:"Favorable", avis_cadastre:"Favorable", avis_domaine:"Defavorable", avis_hygiene:"N/A", avis_mairie:"Favorable", avis_dreec:"N/A", avis_sapeur:"N/A", avis_ageroute:"N/A", avis_snhlm:"N/A", avis_tourisme:"N/A", ia:"Documents manquants"},
+      {ordre:"7", num_dossier:"7_2026", date_intro:"2026-04-11", num_parcelle:"321", commune:"THIES OUEST", lotissement:"ZONE INDUSTRIELLE", requerant:"MOUSSA KANE", tel_requerant:"779345678", superficie_parcelle:"2000", superficie_batie:"1500", nb_niveaux:"2", usage:"INDUSTRIEL", taxe_urbanisme:"50000", taxe_municipale:"150000", autres_taxes:"20000", situation_dossier:"EN INSTRUCTION", date_transmission:"2026-04-10", date_signature:"", num_arrete:"", retrait:"", avis_urbanisme:"Favorable", avis_cadastre:"Favorable", avis_domaine:"Favorable", avis_hygiene:"Defavorable", avis_mairie:"N/A", avis_dreec:"Favorable", avis_sapeur:"Favorable", avis_ageroute:"Favorable", avis_snhlm:"N/A", avis_tourisme:"N/A", ia:"Évaluation environnementale en cours"},
+      {ordre:"8", num_dossier:"8_2026", date_intro:"2026-04-14", num_parcelle:"654", commune:"MBOUR", lotissement:"CITE TOURISTIQUE", requerant:"ISSA FAYE", tel_requerant:"776543210", superficie_parcelle:"5000", superficie_batie:"3000", nb_niveaux:"4", usage:"COMMERCIAL", taxe_urbanisme:"100000", taxe_municipale:"200000", autres_taxes:"50000", situation_dossier:"EN SIGNATURE", date_transmission:"2026-04-13", date_signature:"", num_arrete:"", retrait:"", avis_urbanisme:"Favorable", avis_cadastre:"Favorable", avis_domaine:"Favorable", avis_hygiene:"Favorable", avis_mairie:"Favorable", avis_dreec:"Favorable", avis_sapeur:"N/A", avis_ageroute:"N/A", avis_snhlm:"N/A", avis_tourisme:"Favorable", ia:"En attente de signature"},
+      {ordre:"9", num_dossier:"9_2026", date_intro:"2026-04-08", num_parcelle:"987", commune:"KAOLACK", lotissement:"QUARTIER CENTRAL", requerant:"SALIOU NDIAYE", tel_requerant:"774567890", superficie_parcelle:"400", superficie_batie:"300", nb_niveaux:"2", usage:"ADMINISTRATIF", taxe_urbanisme:"12000", taxe_municipale:"60000", autres_taxes:"5000", situation_dossier:"ARRETE", date_transmission:"2026-04-07", date_signature:"2026-04-08", num_arrete:"2026-10", retrait:"OUI", avis_urbanisme:"Favorable", avis_cadastre:"Favorable", avis_domaine:"Favorable", avis_hygiene:"Favorable", avis_mairie:"Favorable", avis_dreec:"N/A", avis_sapeur:"N/A", avis_ageroute:"N/A", avis_snhlm:"N/A", avis_tourisme:"N/A", ia:"Siège administratif"},
+      {ordre:"10", num_dossier:"10_2026", date_intro:"2026-04-03", num_parcelle:"159", commune:"THIES", lotissement:"EXTENSION NORD", requerant:"HAWA SOW", tel_requerant:"771234567", superficie_parcelle:"300", superficie_batie:"220", nb_niveaux:"2", usage:"EDUCATION", taxe_urbanisme:"8000", taxe_municipale:"35000", autres_taxes:"4000", situation_dossier:"COMPLETE", date_transmission:"2026-04-02", date_signature:"2026-04-03", num_arrete:"2026-08", retrait:"OUI", avis_urbanisme:"Favorable", avis_cadastre:"Favorable", avis_domaine:"Favorable", avis_hygiene:"Favorable", avis_mairie:"Favorable", avis_dreec:"N/A", avis_sapeur:"N/A", avis_ageroute:"N/A", avis_snhlm:"N/A", avis_tourisme:"N/A", ia:"Établissement scolaire"}
+    ];
+    // Garder en mémoire locale comme fallback
+    dossiers = exemplesLocaux;
+    updateBadge();
+  }
+  function sauver() { 
+    updateBadge(); 
+    // Le vrai save se fait via sauvegarderSupabase dans les fonctions d'enregistrement
+  }
+  function updateBadge() { const el = document.getElementById('count-badge'); if (el) el.textContent = dossiers.length; }
+
+  function showTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+    document.getElementById('view-saisie').style.display = tab === 'saisie' ? 'block' : 'none';
+    document.getElementById('view-liste').style.display = tab === 'liste' ? 'block' : 'none';
+    document.getElementById('view-stats').style.display = tab === 'stats' ? 'block' : 'none';
+    document.getElementById('view-users').style.display = tab === 'users' ? 'block' : 'none';
+    document.getElementById('view-db').style.display = tab === 'db' ? 'block' : 'none';
+    if(tab === 'liste') afficherListe(document.getElementById('search_input')?.value || '', document.getElementById('filter_date')?.value || '');
+    if(tab === 'stats') afficherStats();
+    if(tab === 'users') afficherUtilisateurs();
+    if(tab === 'db') {
+      afficherBaseDeDonnees('dossiers', currentDbStatusFilter);
+    }
+  }
+
+  function getForm() {
+    // Fonction helper pour nettoyer les valeurs numériques
+    function cleanNumeric(value) {
+      if (!value || value === '') return '';
+      // Autoriser lettres et chiffres, traits d'union, slash et espaces
+      return value.toString().trim().toUpperCase().replace(/[^A-Z0-9\-\/\s]/g, '');
+    }
+
+    function toNumber(value) {
+      if (value === '' || value === null || value === undefined) return '';
+      const text = value.toString().trim().toUpperCase();
+      if (text === 'RDC') return 0;
+      const match = text.match(/^R\+(\d+)$/);
+      if (match) return Number(match[1]);
+      const num = parseFloat(value);
+      return isNaN(num) ? '' : num;
+    }
+
+    const civiliteValue = v('civilite'); // Peut avoir un espace: "Monsieur ", "Madame "
+    let deposePar = '';
+    let nom_deposant = '';  // Le champ réel de la base de données
+
+    // Gérer les champs dynamiques selon la civilité
+    if (civiliteValue.includes('Monsieur') || civiliteValue.includes('Madame')) {
+      // Pour Monsieur/Madame : récupérer le select Propriétaire/Autre
+      deposePar = v('depose_par');
+      
+      // Si "Autre", récupérer le représentant
+      if (deposePar === 'AUTRE') {
+        nom_deposant = v('representant');  // Le champ "Représentant" du formulaire → nom_deposant de la BD
+      }
+    } else if (civiliteValue === 'Entreprise' || civiliteValue === 'Organisation') {
+      // Pour Entreprise/Organisation : le champ "Représentant" du formulaire → nom_deposant de la BD
+      nom_deposant = v('representant');
+      deposePar = ''; // Pas de "Déposé par"
+    }
+
+    return {
+      ordre: v('ordre'),
+      num_dossier: v('num_dossier'),
+      date_intro: v('date_intro'),
+      num_parcelle: cleanNumeric(v('num_parcelle')),
+      commune: v('commune'),
+      lotissement: v('lotissement'),
+      civilite: civiliteValue.trim(), // Supprimer l'espace si présent
+      requerant: v('requerant'),
+      tel_requerant: v('tel_requerant'),
+      depose_par: deposePar,
+      nom_deposant: nom_deposant,  // Le champ réel de la base de données
+      superficie_parcelle: toNumber(v('superficie_parcelle')),
+      superficie_batie: toNumber(v('superficie_batie')),
+      nb_niveaux: toNumber(v('nb_niveaux')),
+      usage: v('usage'),
+      type_demande: v('type_demande'),
+      usage_actuel: v('usage_actuel'),
+      usage_souhaite: v('usage_souhaite'),
+      niveau_transformation: v('niveau_transformation'),
+      nb_niveaux_actuel: toNumber(v('nb_niveaux_actuel')),
+      nb_niveaux_apres: toNumber(v('nb_niveaux_apres')),
+      taxe_urbanisme: toNumber(v('taxe_urbanisme')),
+      taxe_municipale: toNumber(v('taxe_municipale')),
+      autres_taxes: toNumber(v('autres_taxes')),
+      situation_dossier: v('situation_dossier'),
+      date_transmission: v('date_transmission'),
+      date_signature: v('date_signature'),
+      num_arrete: v('num_arrete'),
+      retrait: v('retrait'),
+      archived_at: v('archived_at'),
+      ia: v('ia')
+    };
+  }
+
+  // Fonction pour récupérer les données du dossier uniquement (sans les avis)
+  function getDossierForm() {
+    return getForm(); // Utilise la même logique que getForm() mais sans les avis
+  }
+
+  function v(id) { return document.getElementById(id)?.value?.trim() || ''; }
+  function setForm(d) {
+    // Charger les données du dossier
+    const dossierFields = ['ordre','num_dossier','date_intro','num_parcelle','commune','lotissement','civilite','requerant','tel_requerant','depose_par','nom_deposant',
+      'superficie_parcelle','superficie_batie','nb_niveaux','usage','type_demande','usage_actuel','usage_souhaite','niveau_transformation','nb_niveaux_actuel','nb_niveaux_apres',
+      'taxe_urbanisme','taxe_municipale','autres_taxes',
+      'situation_dossier','date_transmission','date_signature','num_arrete','retrait','archived_at','ia'];
+    dossierFields.forEach(f => {
+      if (document.getElementById(f)) {
+        document.getElementById(f).value = (d[f] === null || d[f] === undefined) ? '' : d[f];
+      }
+    });
+    
+    // Charger nom_deposant dans le champ representant du formulaire
+    if (d.nom_deposant && document.getElementById('representant')) {
+      document.getElementById('representant').value = d.nom_deposant;
+    }
+    
+    // Gérer l'affichage du champ déposant
+    toggleDeposantField();
+    
+    if(document.getElementById('etat_suivi')) {
+      document.getElementById('etat_suivi').value = d.situation_dossier === 'COMPLETE' ? 'Archivé' : (d.situation_dossier || '');
+    }
+
+    // Chemin physique si disponible
+    if (d.folder_path) {
+      afficherLienDossierPhysique(d.folder_path);
+    } else {
+      cacherLienDossierPhysique();
+    }
+    if (d.folder_error) {
+      toast('⚠ ' + d.folder_error, 'error');
+    }
+
+    // Charger l'ID Supabase si disponible
+    if(document.getElementById('dossier_id')) {
+      document.getElementById('dossier_id').value = d.id || '';
+      console.log('ID défini dans le formulaire:', d.id);
+    }
+
+    // Mettre à jour les libellés selon le type de requérant
+    updateFormLabels();
+    toggleDeposantField();
+    toggleTypeDemandeFields(); // Ajouter l'appel pour les champs de type de demande
+
+    // Charger les avis des services séparément
+    if(d.id) {
+      loadAvisServices(d.id);
+    }
+
+    // Charger les infos de suivi depuis l'API
+    if(d.id) {
+      const infoDiv = document.getElementById('dossier_info');
+      infoDiv.style.display = 'block';
+
+      // Charger l'historique depuis l'API
+      loadDossierHistory(d.id);
+    } else {
+      const infoDiv = document.getElementById('dossier_info');
+      infoDiv.style.display = 'none';
+    }
+  }
+  function resetForm() {
+    const fields = ['ordre','num_dossier','date_intro','num_parcelle','commune','lotissement','civilite','requerant','tel_requerant','depose_par','nom_deposant','representant',
+      'superficie_parcelle','superficie_batie','nb_niveaux','usage','type_demande','usage_actuel','usage_souhaite','niveau_transformation','nb_niveaux_actuel','nb_niveaux_apres',
+      'taxe_urbanisme','taxe_municipale','autres_taxes',
+      'situation_dossier','date_transmission','date_signature','num_arrete','retrait','archived_at','ia','etat_suivi'];
+    fields.forEach(f => { if(document.getElementById(f)) document.getElementById(f).value = ''; });
+
+    // Vider le conteneur des avis dynamiques
+    const avisContainer = document.getElementById('avis_container');
+    if(avisContainer) avisContainer.innerHTML = '';
+    
+    // Masquer tous les champs de dépôt
+    const representantField = document.getElementById('representant_field');
+    if(representantField) representantField.style.display = 'none';
+    const deposeParlabeleField = document.getElementById('depose_par_field');
+    if(deposeParlabeleField) deposeParlabeleField.style.display = 'none';
+
+    // Masquer les champs spécifiques aux types de demande
+    const transformationFields = document.getElementById('transformation_fields');
+    if(transformationFields) transformationFields.style.display = 'none';
+    const surelevationFields = document.getElementById('surelevation_fields');
+    if(surelevationFields) surelevationFields.style.display = 'none';
+
+    // Nettoyer l'ID pour un nouveau dossier
+    if(document.getElementById('dossier_id')) document.getElementById('dossier_id').value = '';
+    if(document.getElementById('dossier_info')) document.getElementById('dossier_info').style.display = 'none';
+    cacherLienDossierPhysique();
+    // Laisser le champ N° ORDRE vide pour saisie manuelle ou génération automatique à l'enregistrement
+    if(document.getElementById('ordre')) document.getElementById('ordre').value = '';
+  }
+
+  function afficherLienDossierPhysique(path) {
+    const button = document.getElementById('open_folder_button');
+    if (!path) {
+      cacherLienDossierPhysique();
+      return;
+    }
+    if (button) {
+      button.disabled = false;
+      button.dataset.path = path;
+    }
+  }
+
+  function cacherLienDossierPhysique() {
+    const button = document.getElementById('open_folder_button');
+    if (button) {
+      button.disabled = true;
+      delete button.dataset.path;
+    }
+  }
+
+  function ouvrirDossierPhysique() {
+    const button = document.getElementById('open_folder_button');
+    if (!button || !button.dataset.path) {
+      toast('Chemin du dossier introuvable', 'error');
+      return;
+    }
+
+    // Appeler l'API pour ouvrir le dossier côté serveur
+    fetch(getApiUrl('open-folder') + '&path=' + encodeURIComponent(button.dataset.path))
+      .then(response => response.json())
+      .then(result => {
+        if (result.status === 200) {
+          toast('📂 Dossier ouvert', 'success');
+        } else {
+          toast('❌ ' + (result.message || 'Erreur lors de l\'ouverture'), 'error');
+        }
+      })
+      .catch(error => {
+        console.error('Erreur:', error);
+        toast('❌ Erreur réseau', 'error');
+      });
+  }
+
+  function toggleDeposantField() {
+    const civiliteValue = document.getElementById('civilite').value;
+    const depose_par_field = document.getElementById('depose_par_field');
+    const representant_field = document.getElementById('representant_field');
+    const deposePar = document.getElementById('depose_par').value;
+
+    // Masquer tous les champs par défaut
+    depose_par_field.style.display = 'none';
+    representant_field.style.display = 'none';
+
+    // Vérifier la civilité de manière robuste (avec ou sans espace)
+    if (civiliteValue.includes('Monsieur') || civiliteValue.includes('Madame')) {
+      // Monsieur/Madame : afficher le select Propriétaire/Autre
+      depose_par_field.style.display = 'block';
+      
+      // Si "Autre", afficher le champ Représentant
+      if (deposePar === 'AUTRE') {
+        representant_field.style.display = 'block';
+        document.getElementById('representant').required = true;
+      } else {
+        document.getElementById('representant').required = false;
+        document.getElementById('representant').value = '';
+      }
+    } else if (civiliteValue === 'Entreprise' || civiliteValue === 'Organisation') {
+      // Entreprise/Organisation : afficher UNIQUEMENT le champ Représentant
+      representant_field.style.display = 'block';
+      document.getElementById('representant').required = true;
+    }
+  }
+
+  function updateFormLabels() {
+    const civiliteValue = document.getElementById('civilite').value;
+    const labelRequerant = document.getElementById('label_requerant');
+
+    if (civiliteValue === 'Entreprise') {
+      labelRequerant.textContent = "Nom de l'entreprise";
+    } else if (civiliteValue === 'Organisation') {
+      labelRequerant.textContent = "Nom de l'organisation";
+    } else {
+      labelRequerant.textContent = 'Nom Requérant';
+    }
+
+    // Mettre à jour les champs de dépôt
+    toggleDeposantField();
+  }
+
+  function toggleTypeDemandeFields() {
+    const typeDemande = document.getElementById('type_demande').value;
+    const transformationFields = document.getElementById('transformation_fields');
+    const surelevationFields = document.getElementById('surelevation_fields');
+    const usageField = document.getElementById('usage').closest('.field');
+
+    // Masquer tous les champs spécifiques par défaut
+    transformationFields.style.display = 'none';
+    surelevationFields.style.display = 'none';
+    usageField.style.display = 'block'; // Le champ usage général est visible par défaut
+
+    if (typeDemande === 'TRANSFORMATION') {
+      transformationFields.style.display = 'block';
+      // Pour transformation, masquer le champ usage général car on utilise usage actuel/souhaité
+      usageField.style.display = 'none';
+    } else if (typeDemande === 'SURELEVATION') {
+      surelevationFields.style.display = 'block';
+      // Pour surélévation, le champ usage général reste visible
+    } else if (typeDemande === 'CONSTRUCTION') {
+      // Pour construction, tout reste visible comme avant
+    }
+  }
+
+  // Gestion dynamique des avis
+  function ajouterAvis() {
+    const selector = document.getElementById('avis_selector');
+    const service = selector.value;
+    
+    if (!service) {
+      toast('Veuillez sélectionner un service', 'warning');
+      return;
+    }
+    
+    // Vérifier si l'avis existe déjà
+    if (document.getElementById('avis_' + service)) {
+      toast('Cet avis est déjà ajouté', 'warning');
+      return;
+    }
+    
+    const container = document.getElementById('avis_container');
+    const serviceLabels = {
+      'urbanisme': 'URBANISME',
+      'cadastre': 'CADASTRE', 
+      'domaine': 'DOMAINE',
+      'hygiene': 'HYGIENE',
+      'mairie': 'MAIRIE',
+      'dreec': 'DREEC',
+      'sapeur': 'SAPEUR',
+      'ageroute': 'AGEROUTE',
+      'snhlm': 'Sn HLM',
+      'tourisme': 'TOURISME'
+    };
+    
+    const avisField = document.createElement('div');
+    avisField.className = 'avis-card';
+    avisField.id = 'avis_card_' + service;
+    avisField.innerHTML = `
+      <div class="avis-card-header">
+        <div class="avis-card-title">${serviceLabels[service]}</div>
+        <button type="button" class="btn btn-outline btn-sm avis-remove-btn" onclick="supprimerAvis('${service}')">✖</button>
+      </div>
+      <select id="avis_${service}" onchange="handleAvisSelectionChange('${service}')">
+        <option value="">-- Choisir --</option>
+        <option>Favorable</option>
+        <option>Defavorable</option>
+        <option>En attente</option>
+      </select>
+      <div class="avis-card-note" id="avis_${service}_reason_wrap" style="display:none;">
+        <label for="avis_${service}_reason">Motif / commentaire</label>
+        <input id="avis_${service}_reason" type="text" placeholder="Motif ou détail de l'avis du service">
+      </div>
+    `;
+    
+    container.appendChild(avisField);
+    
+    // Remettre le sélecteur à vide
+    selector.value = '';
+    
+    handleAvisSelectionChange(service);
+    toast('Avis ajouté', 'success');
+  }
+  
+  function handleAvisSelectionChange(service) {
+    const noteWrap = document.getElementById('avis_' + service + '_reason_wrap');
+    const select = document.getElementById('avis_' + service);
+    if (!noteWrap || !select) return;
+    noteWrap.style.display = select.value === 'Defavorable' ? 'flex' : 'none';
+  }
+  
+  function supprimerAvis(service) {
+    const card = document.getElementById('avis_card_' + service);
+    if (card) {
+      card.remove();
+      toast('Avis supprimé', 'info');
+      return;
+    }
+    const field = document.getElementById('avis_' + service)?.closest('.field');
+    if (field) {
+      field.remove();
+      toast('Avis supprimé', 'info');
+    }
+  }
+  
+  function getAvisForm() {
+    const avis = {};
+    const container = document.getElementById('avis_container');
+    const selects = container.querySelectorAll('select[id^="avis_"]');
+    
+    selects.forEach(select => {
+      const service = select.id.replace('avis_', '');
+      avis['avis_' + service] = select.value;
+      const reasonInput = document.getElementById('avis_' + service + '_reason');
+      if (reasonInput) {
+        avis['avis_' + service + '_reason'] = reasonInput.value.trim();
+      }
+    });
+    
+    return avis;
+  }
+
+  function allAvisFavorables(avis) {
+    const avisKeys = Object.keys(avis).filter(key => key.startsWith('avis_') && !key.endsWith('_reason'));
+    if (avisKeys.length === 0) return false;
+    return avisKeys.every(key => avis[key] === 'Favorable');
+  }
+
+  function toast(msg, type='info') { const t=document.getElementById('toast'); t.textContent=msg; t.className='show '+type; clearTimeout(t._timer); t._timer=setTimeout(()=>t.className='',2500); }
+  async function enregistrerDossier() {
+    const d = getDossierForm();
+    const avis = getAvisForm();
+
+    // Validation des champs requis
+    if(!d.num_dossier) {
+      toast('❌ N° dossier requis', 'error');
+      return;
+    }
+
+    if(!d.type_demande) {
+      toast('❌ Type de demande requis', 'error');
+      return;
+    }
+
+    // Validation du numéro de parcelle
+    if(!d.num_parcelle || d.num_parcelle === '') {
+      toast('❌ N° de parcelle requis', 'error');
+      return;
+    }
+
+    // Validation des superficies
+    if(d.superficie_parcelle && isNaN(parseFloat(d.superficie_parcelle))) {
+      toast('❌ Superficie parcelle doit être un nombre', 'error');
+      return;
+    }
+
+    if(d.superficie_batie && isNaN(parseFloat(d.superficie_batie))) {
+      toast('❌ Superficie bâtie doit être un nombre', 'error');
+      return;
+    }
+
+    // Validation des taxes
+    if(d.taxe_urbanisme && isNaN(parseFloat(d.taxe_urbanisme))) {
+      toast('❌ Taxe urbanisme doit être un nombre', 'error');
+      return;
+    }
+
+    if(d.taxe_municipale && isNaN(parseFloat(d.taxe_municipale))) {
+      toast('❌ Taxe municipale doit être un nombre', 'error');
+      return;
+    }
+
+    if(d.autres_taxes && isNaN(parseFloat(d.autres_taxes))) {
+      toast('❌ Autres taxes doit être un nombre', 'error');
+      return;
+    }
+
+    if (d.situation_dossier === 'COMPLETE' && !allAvisFavorables(avis)) {
+      toast('❌ Impossible de marquer COMPLETE : tous les avis doivent être Favorable', 'error');
+      return;
+    }
+
+    // Archivage automatique pour les dossiers complets
+    const isComplete = d.situation_dossier === 'COMPLETE';
+    const isRetraitOui = String(d.retrait || '').toUpperCase() === 'OUI';
+    const shouldArchive = isComplete && isRetraitOui;
+
+    if (shouldArchive) {
+      d.archived_at = d.archived_at || new Date().toISOString().split('T')[0];
+      if(document.getElementById('archived_at')) document.getElementById('archived_at').value = d.archived_at;
+      if(document.getElementById('etat_suivi')) document.getElementById('etat_suivi').value = 'Archivé';
+    } else {
+      d.archived_at = '';
+      if(document.getElementById('archived_at')) document.getElementById('archived_at').value = '';
+      if(document.getElementById('etat_suivi')) document.getElementById('etat_suivi').value = d.situation_dossier || '';
+    }
+
+    // Générer automatiquement `ordre` s'il est vide
+    if(!d.ordre || d.ordre === '' || d.ordre === undefined) {
+      let maxOrdre = dossiers.reduce((max, dos) => Math.max(max, parseInt(dos.ordre) || 0), 0);
+      d.ordre = (maxOrdre + 1).toString();
+    }
+
+    // Générer une date d'introduction si vide
+    if(!d.date_intro) {
+      const today = new Date().toISOString().split('T')[0];
+      d.date_intro = today;
+    }
+
+    // Filtrer les champs vides, mais conserver archived_at vide pour pouvoir le réinitialiser si besoin
+    const dFiltered = {};
+    Object.keys(d).forEach(key => {
+      if (key === 'archived_at') {
+        dFiltered[key] = d[key] === '' ? null : d[key];
+      } else if(d[key] !== '' && d[key] !== null && d[key] !== undefined) {
+        dFiltered[key] = d[key];
+      }
+    });
+
+    // Récupérer les infos utilisateur de la session
+    const sessionUser = getSessionUser();
+    const currentTime = new Date().toISOString();
+
+    // Vérifier si c'est une mise à jour ou une création
+    const currentId = document.getElementById('dossier_id')?.value;
+
+    if(currentId) {
+      // Mise à jour - capturer les changements
+      dFiltered.id = currentId;
+      
+      // Champs à ignorer dans l'historique (avis et suivi)
+      const fieldsToIgnore = [
+        'avis_urbanisme', 'avis_cadastre', 'avis_domaine', 'avis_hygiene', 'avis_mairie',
+        'avis_dreec', 'avis_sapeur', 'avis_ageroute', 'avis_snhlm', 'avis_tourisme',
+        'situation_dossier', 'num_arrete', 'retrait', 'archived_at', 'etat_suivi'
+      ];
+      
+      // Récupérer le dossier original pour comparer
+      const originalDossier = dossiers.find(x => String(x.id) === String(currentId)) || {};
+      const changes = {};
+
+      // Fonction pour normaliser les valeurs avant comparaison
+      function normalizeValue(value) {
+        if(value === null || value === undefined || value === '') return '';
+        return String(value).trim();
+      }
+
+      Object.keys(dFiltered).forEach(key => {
+        if(key !== 'id' && !fieldsToIgnore.includes(key)) {
+          const oldValue = normalizeValue(originalDossier[key]);
+          const newValue = normalizeValue(dFiltered[key]);
+
+          // Ne créer une entrée que si les valeurs sont vraiment différentes
+          if(oldValue !== newValue) {
+            changes[key] = {
+              old: originalDossier[key] || '',
+              new: dFiltered[key]
+            };
+          }
+        }
+      });
+      
+      // NE PAS envoyer les champs de traçabilité à l'API (gérés côté client)
+      const result = await sauvegarderSupabase(dFiltered);
+      if(result.success) {
+        // Sauvegarder les avis
+        await sauvegarderAvisSupabase(currentId, avis);
+        
+        // Créer une entrée d'historique via l'API pour chaque changement
+        if(Object.keys(changes).length > 0) {
+          for(const [fieldName, changeInfo] of Object.entries(changes)) {
+            await createHistoryEntryAPI(currentId, 'Mise à jour', fieldName, changeInfo.old, changeInfo.new);
+          }
+        } else {
+          // Aucun changement détecté
+          await createHistoryEntryAPI(currentId, 'Mise à jour', null, null, null);
+        }
+        
+        toast('✅ Mis à jour: ' + dFiltered.num_dossier, 'success');
+        // Recharger les infos du dossier pour afficher l'historique
+        dFiltered.id = currentId;
+        // Mettre à jour le tableau local des dossiers avec la réponse API
+        try {
+          let updated = result.data || dFiltered;
+          if (Array.isArray(updated) && updated.length > 0) updated = updated[0];
+          const idx = dossiers.findIndex(x => String(x.id) === String(currentId));
+          if (idx >= 0) {
+            dossiers[idx] = Object.assign({}, dossiers[idx], updated);
+          } else {
+            dossiers.push(updated);
+          }
+        } catch(e) {
+          console.warn('Impossible de mettre à jour le tableau local des dossiers:', e);
+        }
+        setForm(dFiltered);
+        updateBadge();
+        afficherStats();
+
+        // Rafraîchir la liste si on est dans l'onglet Archives
+        if(document.getElementById('view-liste').style.display === 'block') {
+          afficherListe(document.getElementById('search_input')?.value || '', document.getElementById('filter_date')?.value || '');
+        }
+      } else {
+        toast('❌ Erreur: ' + (result.message || 'Erreur inconnue'), 'error');
+      }
+    } else {
+      // Création
+      // NE PAS envoyer les champs de traçabilité à l'API (gérés côté client)
+      
+      const result = await sauvegarderSupabase(dFiltered);
+      if(result.success) {
+        // Enregistrer l'historique pour le nouveau dossier
+        let newDossier = result.data || dFiltered;
+        
+        // S'assurer que newDossier a un ID
+        if (!newDossier.id) {
+          console.warn('⚠️ newDossier.id est vide, en attente de la réponse API correcte');
+          // Si result.data est un array, prendre le premier élément
+          if (Array.isArray(result.data) && result.data.length > 0) {
+            newDossier = result.data[0];
+          }
+        }
+        
+        console.log('newDossier:', newDossier);
+        
+        // Créer les dossiers physiques automatiquement
+        await creerDossiersPhysiques(d.num_dossier);
+        
+        // Sauvegarder les avis pour le nouveau dossier
+        if (newDossier.id) {
+          await sauvegarderAvisSupabase(newDossier.id, avis);
+          
+          // Créer une entrée d'historique via l'API pour la création
+          await createHistoryEntryAPI(newDossier.id, 'Création', null, null, null);
+        } else {
+          console.warn('⚠️ Impossible de créer l\'historique: pas d\'ID dossier');
+        }
+        
+        // Remplir l'ID du dossier créé pour les prochaines modifications
+        if(document.getElementById('dossier_id') && newDossier.id) {
+          document.getElementById('dossier_id').value = newDossier.id;
+        }
+        
+        // Recharger les infos du dossier pour afficher l'historique
+        setForm(newDossier);
+
+        // Ajouter le dossier créé au tableau local et rafraîchir les vues
+        try {
+          let toPush = newDossier;
+          if (Array.isArray(toPush) && toPush.length > 0) toPush = toPush[0];
+          const exists = dossiers.some(x => String(x.id) === String(toPush.id));
+          if (!exists) dossiers.push(toPush);
+        } catch(e) {
+          console.warn('Impossible d\'ajouter le nouveau dossier localement:', e);
+        }
+        updateBadge();
+        afficherStats();
+        
+        // Activer le bouton d'ouverture du dossier si un chemin est disponible
+        if (newDossier.folder_path) {
+          afficherLienDossierPhysique(newDossier.folder_path);
+        }
+        
+        toast('✅ Enregistré: ' + dFiltered.num_dossier, 'success');
+        // Ne pas faire resetForm() ici - on veut garder les infos et montrer l'historique
+      } else {
+        toast('❌ Erreur: ' + (result.message || 'Erreur inconnue'), 'error');
+      }
+    }
+    updateBadge();
+    
+    // Rafraîchir la liste si on est dans l'onglet Archives
+    if(document.getElementById('view-liste').style.display === 'block') {
+      afficherListe(document.getElementById('search_input')?.value || '', document.getElementById('filter_date')?.value || '');
+    }
+  }
+
+  // Fonction pour charger les avis des services depuis l'API
+  async function loadAvisServices(dossierId) {
+    try {
+      const response = await fetch(getApiUrl('avis') + '&method=GET&dossier_id=' + dossierId, {
+        method: 'GET',
+        headers: {
+          'X-User-Role': getSessionUser()?.role || 'ADMIN'
+        }
+      });
+
+      const result = await response.json();
+      if(result.status === 200 && result.data) {
+        const avis = result.data;
+        
+        // Vider le conteneur des avis
+        const container = document.getElementById('avis_container');
+        container.innerHTML = '';
+        
+        // Créer dynamiquement les champs d'avis
+        avis.forEach(avisItem => {
+          const service = String(avisItem.service_name || '').trim().toLowerCase();
+          const serviceLabels = {
+            'urbanisme': 'URBANISME',
+            'cadastre': 'CADASTRE', 
+            'domaine': 'DOMAINE',
+            'hygiene': 'HYGIENE',
+            'mairie': 'MAIRIE',
+            'dreec': 'DREEC',
+            'sapeur': 'SAPEUR',
+            'ageroute': 'AGEROUTE',
+            'sn hlm': 'Sn HLM',
+            'tourisme': 'TOURISME'
+          };
+          
+          const serviceKey = Object.keys(serviceLabels).find(key => serviceLabels[key].toLowerCase() === service.toLowerCase());
+          if (serviceKey) {
+            const avisField = document.createElement('div');
+            avisField.className = 'avis-card';
+            avisField.id = 'avis_card_' + serviceKey;
+            const observation = avisItem.observation ? avisItem.observation : '';
+            avisField.innerHTML = `
+              <div class="avis-card-header">
+                <div class="avis-card-title">${serviceLabels[serviceKey]}</div>
+                <button type="button" class="btn btn-outline btn-sm avis-remove-btn" onclick="supprimerAvis('${serviceKey}')">✖</button>
+              </div>
+              <select id="avis_${serviceKey}" onchange="handleAvisSelectionChange('${serviceKey}')">
+                <option value="">-- Choisir --</option>
+                <option ${avisItem.avis === 'Favorable' ? 'selected' : ''}>Favorable</option>
+                <option ${avisItem.avis === 'Defavorable' ? 'selected' : ''}>Defavorable</option>
+                <option ${avisItem.avis === 'En attente' || avisItem.avis === 'N/A' ? 'selected' : ''}>En attente</option>
+              </select>
+              <div class="avis-card-note" id="avis_${serviceKey}_reason_wrap" style="display:none;">
+                <label for="avis_${serviceKey}_reason">Motif / commentaire</label>
+                <input id="avis_${serviceKey}_reason" type="text" placeholder="Motif ou détail de l'avis du service" value="${observation}">
+              </div>
+            `;
+            
+            container.appendChild(avisField);
+            handleAvisSelectionChange(serviceKey);
+          }
+        });
+
+        console.log('✅ Avis chargés:', avis.length);
+      } else {
+        console.log('Aucun avis trouvé pour ce dossier');
+        // Vider le conteneur des avis
+        const container = document.getElementById('avis_container');
+        container.innerHTML = '';
+      }
+    } catch(e) {
+      console.error('Erreur chargement avis:', e);
+    }
+  }
+
+  async function loadDossierHistory(dossierId) {
+    try {
+      const response = await fetch(getApiUrl('history/' + dossierId) + '&method=GET', {
+        method: 'GET',
+        headers: {
+          'X-User-Role': getSessionUser()?.role || 'ADMIN'
+        }
+      });
+      
+      const result = await response.json();
+      if(result.status === 200 && result.data) {
+        const history = result.data;
+        
+        // Calculer les statistiques
+        const modificationCount = history.length;
+        const lastModification = history.length > 0 ? history[history.length - 1] : null;
+        
+        // Extraire tous les utilisateurs uniques qui ont modifié le dossier
+        const allUsers = new Set(history.map(entry => entry.user_id).filter(u => u));
+        const allUsersString = allUsers.size > 0 ? Array.from(allUsers).join(', ') : 'Aucun';
+        
+        // Afficher les infos
+        document.getElementById('display_created_at').textContent = 
+          history.length > 0 ? new Date(history[0].changed_at).toLocaleString('fr-FR') : '-';
+        document.getElementById('display_updated_at').textContent = 
+          lastModification ? new Date(lastModification.changed_at).toLocaleString('fr-FR') : '-';
+        document.getElementById('display_modified_by').textContent = 
+          lastModification?.user_id || 'admin';
+        document.getElementById('display_modification_count').textContent = modificationCount;
+        
+        // Afficher tous les contributeurs
+        if(document.getElementById('display_all_users')) {
+          document.getElementById('display_all_users').textContent = allUsersString;
+        }
+        
+        // Stocker l'historique pour affichage dans le modal
+        window.currentDossierHistory = history;
+      } else {
+        // Aucun historique trouvé
+        document.getElementById('display_created_at').textContent = '-';
+        document.getElementById('display_updated_at').textContent = '-';
+        document.getElementById('display_modified_by').textContent = 'admin';
+        document.getElementById('display_modification_count').textContent = '0';
+        if(document.getElementById('display_all_users')) {
+          document.getElementById('display_all_users').textContent = 'Aucun';
+        }
+        window.currentDossierHistory = [];
+      }
+    } catch(e) {
+      console.error('Erreur chargement historique:', e);
+      // Fallback en cas d'erreur
+      document.getElementById('display_created_at').textContent = '-';
+      document.getElementById('display_updated_at').textContent = '-';
+      document.getElementById('display_modified_by').textContent = 'admin';
+      document.getElementById('display_modification_count').textContent = '0';
+      window.currentDossierHistory = [];
+    }
+  }
+
+  // Fonction pour rafraîchir l'historique et charger les modifications des autres utilisateurs
+  async function rafraichirHistorique() {
+    const dossierId = document.getElementById('dossier_id')?.value;
+    if(!dossierId) {
+      toast('❌ Chargez d\'abord un dossier', 'error');
+      return;
+    }
+    
+    toast('🔄 Rechargement de l\'historique...', 'info');
+    await loadDossierHistory(dossierId);
+    
+    // Si le modal est ouvert, rafraîchir l'affichage
+    if(document.getElementById('historique_modal').classList.contains('show')) {
+      afficherHistorique();
+    }
+    
+    toast('✅ Historique à jour - Toutes les modifications sont visibles', 'success');
+  }
+
+  // Fonction pour sauvegarder un dossier (création ou mise à jour)
+  async function sauvegarderSupabase(dossierData) {
+    try {
+      const isUpdate = dossierData.id && dossierData.id !== '';
+      const method = isUpdate ? 'PUT' : 'POST';
+      const route = isUpdate ? `dossiers/${dossierData.id}` : 'dossiers';
+      
+      const response = await fetch(getApiUrl(route) + `&method=${method}`, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Role': getSessionUser()?.role || 'ADMIN'
+        },
+        body: JSON.stringify(dossierData)
+      });
+
+      const result = await response.json();
+      console.log('API Response:', result);
+      
+      if (result.status === 201 || result.status === 200) {
+        // Gérer les deux formats possibles de réponse
+        let data = result.data;
+        
+        // Si c'est un array (réponse Supabase), prendre le premier élément
+        if (Array.isArray(data) && data.length > 0) {
+          data = data[0];
+        }
+        
+        console.log('Dossier retourné:', data);
+        return { success: true, data: data };
+      } else {
+        return { success: false, message: result.message || 'Erreur inconnue' };
+      }
+    } catch (error) {
+      console.error('Erreur sauvegarde:', error);
+      return { success: false, message: 'Erreur de connexion' };
+    }
+  }
+
+  // Fonction pour sauvegarder les avis d'un dossier
+  async function sauvegarderAvisSupabase(dossierId, avisData) {
+    try {
+      // Mapper les clés d'avis vers les noms de services
+      const serviceMap = {
+        'urbanisme': 'URBANISME',
+        'cadastre': 'CADASTRE',
+        'domaine': 'DOMAINE',
+        'hygiene': 'HYGIENE',
+        'mairie': 'MAIRIE',
+        'dreec': 'DREEC',
+        'sapeur': 'SAPEUR',
+        'ageroute': 'AGEROUTE',
+        'snhlm': 'Sn HLM',
+        'tourisme': 'TOURISME'
+      };
+
+      for (const [key, serviceName] of Object.entries(serviceMap)) {
+        const avisValue = avisData['avis_' + key];
+        const reason = avisData['avis_' + key + '_reason'];
+        
+        if (avisValue && avisValue !== '') {
+          await fetch(getApiUrl('avis') + '&method=POST', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-User-Role': getSessionUser()?.role || 'ADMIN'
+            },
+            body: JSON.stringify({
+              dossier_id: parseInt(dossierId),
+              service_name: serviceName,
+              avis: avisValue,
+              observation: reason || ''
+            })
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Erreur sauvegarde avis:', error);
+    }
+  }
+
+  // Fonction pour supprimer un dossier
+  async function supprimerSupabase(dossierId) {
+    try {
+const response = await fetch(getApiUrl(`dossiers/${dossierId}`) + '&method=DELETE', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Role': getSessionUser()?.role || 'ADMIN'
+        }
+      });
+
+      const result = await response.json();
+      return result.status === 200 || result.status === 204;
+    } catch (error) {
+      console.error('Erreur suppression:', error);
+      return false;
+    }
+  }
+
+  // Fonction pour créer une entrée d'historique via l'API
+  async function createHistoryEntryAPI(dossierId, action, fieldName = null, oldValue = null, newValue = null) {
+    try {
+      const sessionUser = getSessionUser();
+      const historyData = {
+        dossier_id: parseInt(dossierId),
+        action: action,
+        user_id: sessionUser?.username || 'admin',
+        field_name: fieldName,
+        old_value: oldValue !== null ? String(oldValue) : null,
+        new_value: newValue !== null ? String(newValue) : null
+      };
+
+      const response = await fetch(getApiUrl('history') + '&method=POST', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Role': sessionUser?.role || 'ADMIN',
+          'X-User-Id': sessionUser?.username || 'admin'
+        },
+        body: JSON.stringify(historyData)
+      });
+
+      const result = await response.json();
+      if(result.status === 201) {
+        console.log('✅ Entrée d\'historique créée:', result.data);
+        return true;
+      } else {
+        console.error('❌ Erreur création historique:', result.message);
+        return false;
+      }
+    } catch(e) {
+      console.error('Erreur API historique:', e);
+      return false;
+    }
+  }
+
+  async function enregistrerAvisSeul() {
+    const dossierId = document.getElementById('dossier_id')?.value;
+    if(!dossierId) {
+      toast('❌ Enregistrez ou chargez d\'abord un dossier avant de sauvegarder les avis.', 'error');
+      return;
+    }
+
+    const avis = getAvisForm();
+    const result = await sauvegarderAvisSupabase(dossierId, avis);
+    if(result.success) {
+      // NE PAS créer d'historique pour les avis (évite les doublons)
+      toast('✅ Avis sauvegardés avec succès', 'success');
+    } else {
+      toast('❌ Erreur sauvegarde avis: ' + (result.message || 'Erreur inconnue'), 'error');
+    }
+  }
+
+  async function supprimerHistoriqueEntry(entryId) {
+    if(!entryId) return;
+    if(!confirm('Confirmer la suppression de cette entrée historique ?')) return;
+
+    try {
+      const response = await fetch(getApiUrl('db') + '&table=dossier_history&id=' + entryId, {
+        method: 'DELETE',
+        headers: {
+          'X-User-Role': getSessionUser()?.role || 'ADMIN'
+        }
+      });
+      const result = await response.json();
+      if(result.status === 200) {
+        const dossierId = document.getElementById('dossier_id')?.value;
+        if(dossierId) {
+          await loadDossierHistory(dossierId);
+        }
+        afficherHistorique();
+        toast('✅ Entrée historique supprimée', 'success');
+      } else {
+        console.error('Erreur suppression historique:', result.message);
+        toast('❌ Impossible de supprimer l\'entrée historique', 'error');
+      }
+    } catch(e) {
+      console.error('Erreur API suppression historique:', e);
+      toast('❌ Impossible de supprimer l\'entrée historique', 'error');
+    }
+  }
+
+  // Fonction pour afficher l'historique complet
+  function afficherHistorique() {
+    const history = window.currentDossierHistory || [];
+    const modal = document.getElementById('historique_modal');
+    const body = document.getElementById('historique_modal_body');
+    const headerTitle = document.querySelector('#historique_modal_header h2');
+    if(headerTitle) headerTitle.textContent = '📋 Historique des modifications';
+
+    if(!history.length) {
+      body.innerHTML = '<div class="empty-state">📂 Aucun historique disponible pour ce dossier</div>';
+    } else {
+      let html = '';
+      history.forEach((entry, idx) => {
+        const timestamp = new Date(entry.changed_at).toLocaleString('fr-FR');
+        const actionEmoji = entry.action === 'Création' ? '✨' : entry.action === 'Mise à jour' ? '✏️' : '📝';
+        
+        // Afficher les détails du changement si disponibles
+        let detailsHtml = '';
+        if(entry.field_name) {
+          detailsHtml = `<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-left: 3px solid #0B3D6E; font-size: 12px;">
+            <strong>Champ :</strong> ${entry.field_name}<br/>
+            ${entry.old_value ? `<strong style="color: #dc3545;">Avant :</strong> ${entry.old_value}<br/>` : ''}
+            ${entry.new_value ? `<strong style="color: #28a745;">Après :</strong> ${entry.new_value}` : ''}
+          </div>`;
+        }
+        
+        html += `<div class="historique_entry">
+          <div class="historique_entry_time">${actionEmoji} ${timestamp}</div>
+          <div class="historique_entry_action">${entry.action}</div>
+          <div class="historique_entry_user">👤 ${entry.user_id || 'admin'}</div>
+          ${detailsHtml}
+          <button class="btn btn-danger" style="margin-top: 8px; font-size: 11px;" onclick="supprimerHistoriqueEntry(${entry.id})">Supprimer</button>
+        </div>`;
+      });
+      body.innerHTML = html;
+    }
+    if(modal) modal.classList.add('show');
+  }
+
+  // Fermer le modal au clic en dehors
+  document.addEventListener('click', function(e) {
+    const modal = document.getElementById('historique_modal');
+    if(e.target === modal) {
+      fermerHistorique();
+    }
+  });
+
+  function fermerHistorique() {
+    const modal = document.getElementById('historique_modal');
+    if(modal) modal.classList.remove('show');
+  }
+
+  // Fonctions utilitaires pour le nettoyage des données numériques
+  function cleanNumeric(value) {
+    if(!value) return '';
+    // Autoriser lettres et chiffres, traits d'union, slash et espaces
+    return value.toString().trim().toUpperCase().replace(/[^A-Z0-9\-\/\s]/g, '');
+  }
+
+  function toNumber(value) {
+    if(!value || value === '') return '';
+    const num = parseFloat(value.toString().replace(',', '.'));
+    return isNaN(num) ? '' : num.toString();
+  }
+
+  // Fonction pour nettoyer automatiquement les champs numériques
+  function setupNumericValidation() {
+    const numericFields = [
+      'num_parcelle',
+      'superficie_parcelle', 
+      'superficie_batie',
+      'taxe_urbanisme',
+      'taxe_municipale',
+      'autres_taxes'
+    ];
+
+    numericFields.forEach(fieldId => {
+      const element = document.getElementById(fieldId);
+      if(element) {
+        element.addEventListener('input', function(e) {
+          const value = e.target.value;
+          
+          // Pour num_parcelle, autoriser alphanumérique (lettres, chiffres, -, /, espaces)
+          if(fieldId === 'num_parcelle') {
+            const cleaned = cleanNumeric(value);
+            if(cleaned !== value) {
+              e.target.value = cleaned;
+            }
+          } else {
+            // Pour les autres champs numériques, permettre seulement les nombres et la virgule/point
+            const cleaned = value.replace(/[^0-9.,]/g, '');
+            if(cleaned !== value) {
+              e.target.value = cleaned;
+            }
+          }
+        });
+
+        element.addEventListener('blur', function(e) {
+          const value = e.target.value.trim();
+          
+          // Validation finale lors de la perte de focus
+          if(fieldId !== 'num_parcelle' && value && isNaN(parseFloat(value.replace(',', '.')))) {
+            toast(`❌ ${fieldId.replace('_', ' ').toUpperCase()} doit être un nombre`, 'error');
+            e.target.focus();
+            return;
+          }
+        });
+      }
+    });
+  }
+
+  function supprimerDossier() {
+    const num = v('num_dossier');
+    if(!num) { toast('N° dossier à supprimer?', 'error'); return; }
+    const found = dossiers.find(x=>x.num_dossier===num);
+    if(!found) { toast('Introuvable', 'error'); return; }
+    if(confirm(`Supprimer ${num} ?`)) { 
+      (async () => {
+        const success = await supprimerSupabase(found.id);
+        if(success) {
+          dossiers = dossiers.filter(x => x.id !== found.id);
+          resetForm();
+          toast('✅ Supprimé', 'info');
+          updateBadge();
+          afficherStats();
+          afficherListe(document.getElementById('search_input')?.value || '', document.getElementById('filter_date')?.value || '');
+        } else {
+          toast('❌ Erreur lors de la suppression', 'error');
+        }
+      })();
+    }
+  }
+  function rechercherDossier() {
+    const q = v('num_dossier') || v('requerant');
+    if(!q) {
+      showTab('db');
+      return;
+    }
+    const dbSearch = document.getElementById('db_search_input');
+    if(dbSearch) {
+      dbSearch.value = q;
+    }
+    showTab('db');
+    filtrerDbTable();
+    toast('Recherche envoyée vers la base de données', 'info');
+  }
+  function afficherListe(filtre='', dateFilter='') {
+    const container = document.getElementById('liste_container');
+    let list = dossiers;
+    
+    // Ne montrer en Archives que les dossiers marqués COMPLETE et retirés
+    list = list.filter(d => d.situation_dossier === 'COMPLETE' && String(d.retrait || '').toUpperCase() === 'OUI');
+    
+    // Filtre par texte
+    if(filtre) {
+      list = list.filter(d => JSON.stringify(d).toLowerCase().includes(filtre.toLowerCase()));
+    }
+    
+    // Filtre par date
+    if(dateFilter) {
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      
+      if(dateFilter === 'today') {
+        list = list.filter(d => d.date_intro === todayStr);
+      } else if(dateFilter === 'custom') {
+        const customDate = document.getElementById('filter_date_custom').value;
+        if(customDate) {
+          list = list.filter(d => d.date_intro === customDate);
+        }
+      }
+    }
+    
+    // Afficher le select de date personnalisée si nécessaire
+    const customDateInput = document.getElementById('filter_date_custom');
+    if(dateFilter === 'custom') {
+      customDateInput.style.display = 'block';
+    } else {
+      customDateInput.style.display = 'none';
+    }
+    
+    if(!list.length) { 
+      container.innerHTML = `<div class="empty-state">📂 Aucun dossier archivé trouvé</div>`; 
+      const _cb = document.getElementById('count-badge'); if(_cb) _cb.textContent = '0';
+      return; 
+    }
+    container.innerHTML = `<div class="table-wrap"><table><thead><tr>
+      <th>N° ORDRE</th><th>N° DOSSIER</th><th>Date intro</th><th>Commune</th><th>Requérant</th><th>Situation</th><th>Taxe Urb.</th>
+    </tr></thead><tbody>
+      ${list.map(d => {
+        const statusClass = 'status-pill status-' + String(d.situation_dossier || '').toLowerCase().replace(/\s+/g, '-');
+        return `<tr onclick="chargerDossier('${d.num_dossier}')">
+          <td>${d.ordre||''}</td><td class="td-num">${d.num_dossier}</td><td>${d.date_intro||''}</td><td>${d.commune||''}</td><td>${d.requerant||''}</td><td><span class="${statusClass}">${d.situation_dossier||''}</span></td><td>${d.taxe_urbanisme||''} FCFA</td>
+        </tr>`;
+      }).join('')}
+    </tbody></table></div>`;
+    const _cb2 = document.getElementById('count-badge'); if(_cb2) _cb2.textContent = list.length;
+  }
+  function chargerDossier(num) { 
+    const d = dossiers.find(x=>x.num_dossier===num); 
+    if(d){ 
+      setForm(d); 
+      showTab('saisie'); 
+      toast('Chargé: '+d.num_dossier, 'success');
+      console.log('Dossier chargé avec ID:', d.id);
+    } else {
+      toast('Dossier non trouvé', 'error');
+    }
+  }
+  function afficherStats() {
+    try {
+      // ===== INDICATEURS CLÉS =====
+      const total = dossiers.length;
+      const enInstruction = dossiers.filter(d => d.situation_dossier === 'EN INSTRUCTION').length;
+      const complete = dossiers.filter(d => d.situation_dossier === 'COMPLETE').length;
+      const arrete = dossiers.filter(d => d.situation_dossier === 'ARRETE').length;
+      const rejetes = dossiers.filter(d => d.situation_dossier === 'REJETE').length;
+      const taxesTotales = dossiers.reduce((sum, d) => sum + (parseInt(d.taxe_urbanisme) || 0), 0);
+      const taxeMunicipale = dossiers.reduce((sum, d) => sum + (parseInt(d.taxe_municipale) || 0), 0);
+      const superficieTotale = dossiers.reduce((sum, d) => sum + (parseInt(d.superficie_parcelle) || 0), 0);
+      const tauxAcceptation = total > 0 ? Math.round(((complete + arrete) / total) * 100) : 0;
+      const superficieMoyenne = total > 0 ? (superficieTotale / total).toFixed(0) : 0;
+      const taxeMoyenne = total > 0 ? (taxesTotales / total).toFixed(0) : 0;
+      const enAttente = dossiers.filter(d => d.situation_dossier === 'EN ATTENTE').length;
+      const incomplete = dossiers.filter(d => d.situation_dossier === 'INCOMPLETE').length;
+      const enSignature = dossiers.filter(d => d.situation_dossier === 'EN SIGNATURE').length;
+      const quittanceNonPayee = dossiers.filter(d => d.situation_dossier === 'QUITTANCE NON PAYEE').length;
+      const communesCount = [...new Set(dossiers.map(d => d.commune).filter(c => c))].length;
+      const plusUtilisee = (() => {
+        const communes = {};
+        dossiers.forEach(d => {
+          if(d.commune) communes[d.commune] = (communes[d.commune] || 0) + 1;
+        });
+        return Object.keys(communes).length > 0 ? Object.keys(communes).reduce((a, b) => communes[a] > communes[b] ? a : b) : 'N/A';
+      })();
+      
+      console.log('Stats - Total:', total, 'En instruction:', enInstruction);
+      
+      // Afficher indicateurs clés
+      const keyStatsContainer = document.getElementById('key-stats-container');
+      if(keyStatsContainer) {
+        keyStatsContainer.innerHTML = `
+          <div class="key-stat accent1" style="animation-delay: 0s;">
+            <div class="key-stat-icon">📊</div>
+            <div class="key-stat-value" data-target="${total}">0</div>
+            <div class="key-stat-label">Dossiers Totaux</div>
+          </div>
+          <div class="key-stat accent2" style="animation-delay: 0.1s;">
+            <div class="key-stat-icon">⏳</div>
+            <div class="key-stat-value" data-target="${enInstruction}">0</div>
+            <div class="key-stat-label">En Instruction</div>
+          </div>
+          <div class="key-stat" style="animation-delay: 0.2s; background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);">
+            <div class="key-stat-icon">✔️</div>
+            <div class="key-stat-value" data-target="${complete}">0</div>
+            <div class="key-stat-label">Complètes</div>
+          </div>
+          <div class="key-stat" style="animation-delay: 0.3s; background: linear-gradient(135deg, #F093FB 0%, #F5576C 100%);">
+            <div class="key-stat-icon">❌</div>
+            <div class="key-stat-value" data-target="${rejetes}">0</div>
+            <div class="key-stat-label">Rejetées</div>
+          </div>
+          <div class="key-stat" style="animation-delay: 0.4s; background: linear-gradient(135deg, #4158D0 0%, #C850C0 100%);">
+            <div class="key-stat-icon">⚠️</div>
+            <div class="key-stat-value" data-target="${incomplete}">0</div>
+            <div class="key-stat-label">Incomplètes</div>
+          </div>
+          <div class="key-stat" style="animation-delay: 0.5s; background: linear-gradient(135deg, #0093E9 0%, #80D0C7 100%);">
+            <div class="key-stat-icon">📝</div>
+            <div class="key-stat-value" data-target="${enSignature}">0</div>
+            <div class="key-stat-label">En Signature</div>
+          </div>
+        `;
+        
+        // Animer les compteurs
+        animateCounters();
+      }
+      
+      // ===== GRAPHIQUE 1: SITUATION DES DOSSIERS =====
+      const situationLabels = ['EN INSTRUCTION', 'COMPLETE', 'ARRETE', 'REJETE', 'INCOMPLETE', 'QUITTANCE NON PAYEE', 'EN SIGNATURE'];
+      const situationData = situationLabels.map(s => dossiers.filter(d => d.situation_dossier === s).length);
+      const ctxSituationEl = document.getElementById('chartSituation');
+      if(ctxSituationEl && typeof Chart !== 'undefined') {
+        const ctxSituation = ctxSituationEl.getContext('2d');
+        if(window.chartSituation && typeof window.chartSituation.destroy === 'function') {
+          window.chartSituation.destroy();
+        }
+        window.chartSituation = new Chart(ctxSituation, {
+          type: 'doughnut',
+          data: {
+            labels: situationLabels,
+            datasets: [{
+              data: situationData,
+              backgroundColor: ['#FFC107', '#28A745', '#17A2B8', '#DC3545', '#6C757D', '#E83E8C', '#007BFF'],
+              borderColor: '#fff',
+              borderWidth: 2
+            }]
+          },
+          options: { 
+            responsive: true, 
+            maintainAspectRatio: true,
+            animation: { duration: 1200, easing: 'easeInOutQuart' },
+            plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, padding: 15 } } } 
+          }
+        });
+      }
+      
+      // ===== GRAPHIQUE 2: DISTRIBUTION DES USAGES =====
+      const usages = [...new Set(dossiers.map(d => d.usage).filter(u => u))];
+      const usageData = usages.map(u => dossiers.filter(d => d.usage === u).length);
+      const ctxUsageEl = document.getElementById('chartUsage');
+      if(ctxUsageEl && typeof Chart !== 'undefined') {
+        const ctxUsage = ctxUsageEl.getContext('2d');
+        if(window.chartUsage && typeof window.chartUsage.destroy === 'function') {
+          window.chartUsage.destroy();
+        }
+        window.chartUsage = new Chart(ctxUsage, {
+          type: 'bar',
+          data: {
+            labels: usages,
+            datasets: [{ 
+              label: 'Nombre de dossiers', 
+              data: usageData, 
+              backgroundColor: ['#FF6B6B', '#4ECDC4', '#F7B731', '#5F27CD', '#00D2D3', '#A8E063'].slice(0, usageData.length),
+              borderRadius: 8,
+              borderSkipped: false,
+              hoverBackgroundColor: ['#FF6B6B99', '#4ECDC499', '#F7B73199', '#5F27CD99', '#00D2D399', '#A8E06399'].slice(0, usageData.length)
+            }]
+          },
+          options: { 
+            responsive: true, 
+            maintainAspectRatio: true,
+            animation: { duration: 1200, easing: 'easeInOutQuart' },
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: { x: { beginAtZero: true, max: Math.max(...usageData, 5), grid: { display: true, drawBorder: false, color: 'rgba(0,0,0,0.05)' } } }
+          }
+        });
+      }
+      
+      // ===== GRAPHIQUE 3: TOP COMMUNES =====
+      const communes = [...new Set(dossiers.map(d => d.commune).filter(c => c))];
+      const communeData = communes.map(c => dossiers.filter(d => d.commune === c).length).sort((a, b) => b - a).slice(0, 8);
+      const communeLabels = communes.sort((a, b) => {
+        const countA = dossiers.filter(d => d.commune === a).length;
+        const countB = dossiers.filter(d => d.commune === b).length;
+        return countB - countA;
+      }).slice(0, 8);
+      const ctxCommunesEl = document.getElementById('chartCommunes');
+      if(ctxCommunesEl && typeof Chart !== 'undefined') {
+        const ctxCommunes = ctxCommunesEl.getContext('2d');
+        if(window.chartCommunes && typeof window.chartCommunes.destroy === 'function') {
+          window.chartCommunes.destroy();
+        }
+        window.chartCommunes = new Chart(ctxCommunes, {
+          type: 'bar',
+          data: {
+            labels: communeLabels,
+            datasets: [{ 
+              label: 'Dossiers par commune', 
+              data: communeData, 
+              backgroundColor: [
+                '#667EEA', '#764BA2', '#F093FB', '#F5576C', '#4158D0', '#C850C0', '#0093E9', '#80D0C7'
+              ].slice(0, communeData.length),
+              borderRadius: 8,
+              borderSkipped: false,
+              hoverBackgroundColor: [
+                '#667EEACC', '#764BA2CC', '#F093FBCC', '#F5576CCC', '#4158D0CC', '#C850C0CC', '#0093E9CC', '#80D0C7CC'
+              ].slice(0, communeData.length)
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            animation: { duration: 1200, easing: 'easeInOutQuart' },
+            plugins: { legend: { display: false } },
+            scales: { 
+              y: { 
+                beginAtZero: true, 
+                max: Math.max(...communeData, 5),
+                grid: { display: true, drawBorder: false, color: 'rgba(0,0,0,0.05)' }
+              } 
+            }
+          }
+        });
+      }
+      
+      
+      // ===== TABLEAU DES TAXES =====
+      const taxeUrbanismeTotal = dossiers.reduce((sum, d) => sum + (parseInt(d.taxe_urbanisme) || 0), 0);
+      const taxeMunicipalTotal = dossiers.reduce((sum, d) => sum + (parseInt(d.taxe_municipale) || 0), 0);
+      const autresTaxesTotal = dossiers.reduce((sum, d) => sum + (parseInt(d.autres_taxes) || 0), 0);
+      const totalRevenu = taxeUrbanismeTotal + taxeMunicipalTotal + autresTaxesTotal;
+      
+      const dossiersTaxeUrb = dossiers.filter(d => d.taxe_urbanisme).length;
+      const dossiersTaxeMun = dossiers.filter(d => d.taxe_municipale).length;
+      const dossiersTaxeAut = dossiers.filter(d => d.autres_taxes).length;
+      
+      const taxTableBody = document.getElementById('tax-table-body');
+      if(taxTableBody) {
+        taxTableBody.innerHTML = `
+          <tr><td><strong>Taxe Urbanisme</strong></td><td><strong>${(taxeUrbanismeTotal).toLocaleString('fr-FR')} FCFA</strong></td><td>${dossiersTaxeUrb}</td><td>${(dossiersTaxeUrb > 0 ? (taxeUrbanismeTotal/dossiersTaxeUrb).toLocaleString('fr-FR') : '0')} FCFA</td></tr>
+          <tr><td><strong>Taxe Municipale</strong></td><td><strong>${(taxeMunicipalTotal).toLocaleString('fr-FR')} FCFA</strong></td><td>${dossiersTaxeMun}</td><td>${(dossiersTaxeMun > 0 ? (taxeMunicipalTotal/dossiersTaxeMun).toLocaleString('fr-FR') : '0')} FCFA</td></tr>
+          <tr><td><strong>Autres Taxes</strong></td><td><strong>${(autresTaxesTotal).toLocaleString('fr-FR')} FCFA</strong></td><td>${dossiersTaxeAut}</td><td>${(dossiersTaxeAut > 0 ? (autresTaxesTotal/dossiersTaxeAut).toLocaleString('fr-FR') : '0')} FCFA</td></tr>
+          <tr style="background: var(--surface-alt); font-weight: bold;"><td>TOTAL GÉNÉRAL</td><td>${(totalRevenu).toLocaleString('fr-FR')} FCFA</td><td>-</td><td>-</td></tr>
+        `;
+      }
+
+      // ===== TABLEAU DES DOSSIERS PAR MOIS =====
+      const mois = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+      const statuts = ['EN INSTRUCTION', 'EN ATTENTE', 'COMPLETE', 'ARRETE', 'REJETE', 'INCOMPLETE', 'QUITTANCE NON PAYEE', 'EN SIGNATURE'];
+      const monthlyData = mois.map((m, idx) => {
+        const month = idx + 1;
+        const year = 2026;
+        const dossiersMonth = dossiers.filter(d => {
+          if(!d.date_intro) return false;
+          const [y, mo, day] = d.date_intro.split('-').map(Number);
+          return y === year && mo === month;
+        });
+        const result = { mois: m, total: dossiersMonth.length };
+        statuts.forEach(s => {
+          result[s] = dossiersMonth.filter(d => d.situation_dossier === s).length;
+        });
+        return result;
+      });
+      
+      const monthlyBody = document.getElementById('monthly-table-body');
+      if(monthlyBody) {
+        monthlyBody.innerHTML = monthlyData.map(md => {
+          const total = statuts.reduce((sum, s) => sum + (md[s] || 0), 0);
+          return `<tr>
+            <td><strong>${md.mois}</strong></td>
+            <td>${md['EN INSTRUCTION'] || 0}</td>
+            <td>${md['EN ATTENTE'] || 0}</td>
+            <td>${md['COMPLETE'] || 0}</td>
+            <td>${md['ARRETE'] || 0}</td>
+            <td>${md['REJETE'] || 0}</td>
+            <td>${md['INCOMPLETE'] || 0}</td>
+            <td>${md['QUITTANCE NON PAYEE'] || 0}</td>
+            <td>${md['EN SIGNATURE'] || 0}</td>
+            <td><strong>${total}</strong></td>
+          </tr>`;
+        }).join('');
+      }
+
+      // ===== RÉSUMÉ DES STATUTS =====
+      const statusSummary = statuts.map(s => {
+        const count = dossiers.filter(d => d.situation_dossier === s).length;
+        const percent = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
+        const barWidth = total > 0 ? (count / total) * 100 : 0;
+        return { statut: s, count, percent, barWidth };
+      });
+      
+      const statusBody = document.getElementById('status-summary-body');
+      if(statusBody) {
+        statusBody.innerHTML = statusSummary.map(s => `<tr>
+          <td><strong>${s.statut}</strong></td>
+          <td>${s.count}</td>
+          <td>${s.percent}%</td>
+          <td><div style="background: #E8EEF4; border-radius: 4px; height: 20px; overflow: hidden;">
+            <div style="background: linear-gradient(90deg, #0B3D6E, #185FA5); width: ${s.barWidth}%; height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: bold;">
+              ${s.count > 0 ? s.count : ''}
+            </div>
+          </div></td>
+        </tr>`).join('');
+      }
+
+      console.log('Statistiques affichées avec succès');
+    } catch(e) {
+      console.error('Erreur dans afficherStats():', e);
+    }
+  }
+  function genererPDF() {
+    const d = getForm();
+    if(!d.num_dossier) { toast('N° dossier requis', 'error'); return; }
+    const w = window.open('', '_blank');
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Dossier ${d.num_dossier}</title><style>body{font-family:Georgia;font-size:11px;margin:2rem} table{width:100%;border-collapse:collapse} td,th{border:1px solid #ccc;padding:6px}</style></head><body>
+    <h2>MUCTAT - Thiès</h2><h3>Dossier ${d.num_dossier}</h3>
+    <table><tr><th>N° ORDRE</th><td>${d.ordre}</td><th>N° DOSSIER</th><td>${d.num_dossier}</td></tr>
+    <tr><th>Date intro</th><td>${d.date_intro}</td><th>Parcelle</th><td>${d.num_parcelle}</td></tr>
+    <tr><th>Commune</th><td>${d.commune}</td><th>Lotissement</th><td>${d.lotissement}</td></tr>
+    <tr><th>Requérant</th><td>${d.requerant}</td><th>Tél</th><td>${d.tel_requerant}</td></tr>
+    <tr><th>Superficie parcelle</th><td>${d.superficie_parcelle}</td><th>Superficie bâtie</th><td>${d.superficie_batie}</td></tr>
+    <tr><th>Niveaux</th><td>${d.nb_niveaux === 0 || d.nb_niveaux === '0' ? 'RDC' : (d.nb_niveaux ? 'R+' + d.nb_niveaux : '')}</td><th>Usage</th><td>${d.usage}</td></tr>
+    <tr><th>Taxe Urbanisme</th><td>${d.taxe_urbanisme}</td><th>Taxe Municipale</th><td>${d.taxe_municipale}</td></tr>
+    <tr><th>Situation</th><td>${d.situation_dossier}</td><th>Date signature</th><td>${d.date_signature}</td></tr>
+    <tr><th>Arrêté</th><td>${d.num_arrete}</td><th>Retrait</th><td>${d.retrait}</td></tr>
+    </table><h4>Avis</h4> <table>${['urbanisme','cadastre','domaine','hygiene','mairie','dreec','sapeur','ageroute','snhlm','tourisme'].map(s => `<tr><th>${s.toUpperCase()}</th><td>${d['avis_'+s]||''}</td></tr>`).join('')}</table>
+    <script>window.print()<\/script></body></html>`);
+    w.document.close();
+  }
+
+  function genererRecuPDF() {
+    const d = getForm();
+    if(!d.num_dossier) { toast('N° dossier requis', 'error'); return; }
+
+    const dateDepot = new Date().toLocaleDateString('fr-FR');
+    const numeroRecu = d.num_dossier;
+    const baseAppUrl = window.location.origin + (window.location.pathname.includes('/web/') ? '/web' : '');
+    const suiviUrl = baseAppUrl + '/suivi.html?dossier=' + encodeURIComponent(d.num_dossier);
+    const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=' + encodeURIComponent(suiviUrl);
+
+    // Déterminer la civilité et le genre du requérant
+    let civilite = '';
+    let isMadame = false;
+    let isMonsieur = false;
+    let isEntreprise = false;
+    let isOrganisation = false;
+    
+    const requerant = d.requerant || '';
+    const nom_deposant = d.nom_deposant || '';  // Le vrai champ de la BD
+    const civiliteValue = (d.civilite || '').trim(); // Supprimer les espaces
+    const deposePar = d.depose_par || '';
+
+    // Vérifier la civilité de manière robuste (avec ou sans espace)
+    if (civiliteValue.includes('Madame')) {
+      isMadame = true;
+      civilite = `Madame ${requerant}`;
+    } else if (civiliteValue.includes('Monsieur')) {
+      isMonsieur = true;
+      civilite = `Monsieur ${requerant}`;
+    } else if (civiliteValue === 'Entreprise') {
+      isEntreprise = true;
+      civilite = `${requerant}`;
+    } else if (civiliteValue === 'Organisation') {
+      isOrganisation = true;
+      civilite = `${requerant}`;
+    }
+
+    let deposantLine = '';
+    let depotParTexte = '';
+
+    if (isEntreprise || isOrganisation) {
+      // Pour Entreprise/Organisation: afficher le représentant
+      depotParTexte = `par ${isEntreprise ? 'l\'Entreprise' : 'l\'Organisation'} ${requerant}`;
+      if (nom_deposant) {
+        deposantLine = `<p>Représenté par : <strong>${nom_deposant}</strong></p>`;
+      }
+    } else if (deposePar === 'AUTRE' && nom_deposant) {
+      // Pour Monsieur/Madame avec Autre: afficher le représentant
+      depotParTexte = civilite || requerant || 'Propriétaire';
+      deposantLine = `<p>Représenté par : <strong>${nom_deposant}</strong></p>`;
+    } else {
+      // Monsieur/Madame qui dépose lui-même/elle-même
+      depotParTexte = isMadame ? 'elle-même' : (isMonsieur ? 'lui-même' : (civilite || requerant || 'le propriétaire'));
+    }
+
+    const w = window.open('', '_blank');
+    w.document.write(`<!DOCTYPE html>
+    <html lang="fr">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Récépissé de Dépôt</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+          background: #b0b0b0;
+          display: flex;
+          justify-content: center;
+          padding: 30px 10px;
+          font-family: "Times New Roman", Times, serif;
+        }
+
+        .page {
+          width: 210mm;
+          min-height: 297mm;
+          background: #fff;
+          padding: 14mm 16mm 50mm 16mm;
+          box-shadow: 0 4px 30px rgba(0,0,0,0.3);
+          position: relative;
+        }
+
+        /* TOP ROW */
+        .top-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+        }
+
+        .left-block {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          width: 62%;
+        }
+
+        .republic {
+          font-weight: bold;
+          font-size: 10.5pt;
+          text-align: center;
+        }
+
+        .motto {
+          font-style: italic;
+          font-size: 9pt;
+          text-align: center;
+        }
+
+        .tiret {
+          text-align: center;
+          font-size: 9pt;
+          margin: 1px 0;
+        }
+
+        .muctat-box {
+          display: inline-block;
+          border: 1.5px solid #000;
+          padding: 1px 16px;
+          margin: 3px 0;
+        }
+
+        .muctat-box span {
+          font-size: 15pt;
+          font-weight: bold;
+          letter-spacing: 1px;
+        }
+
+        /* FLAG — smaller and centered */
+        .flag {
+          display: flex;
+          width: 220px;
+          height: 14px;
+          margin: 4px auto;
+          border: 0.5px solid #999;
+          overflow: hidden;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+          color-adjust: exact;
+        }
+        .flag .g { background: #009A44; flex: 1; }
+        .flag .y {
+          background: #FDEF42;
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .flag .star { color: #009A44; font-size: 9px; line-height: 1; }
+        .flag .r { background: #E31B23; flex: 1; }
+
+        /* Ministry text — centered */
+        .ministry-block {
+          margin-top: 6px;
+          font-size: 10pt;
+          font-weight: bold;
+          line-height: 1.65;
+          text-align: center;
+          width: 100%;
+        }
+
+        .ministry-block .amp {
+          font-weight: normal;
+          display: block;
+          text-align: center;
+        }
+
+        /* DOSSIER */
+        .dossier-right {
+          font-size: 13pt;
+          font-weight: bold;
+          white-space: nowrap;
+        }
+
+        /* TITLE */
+        .title {
+          text-align: center;
+          color: #1565C0;
+          font-family: Arial Black, Arial, sans-serif;
+          font-size: 27pt;
+          font-weight: 900;
+          font-style: italic;
+          letter-spacing: 1px;
+          margin: 18px 0 22px;
+        }
+
+        /* BODY */
+        .body {
+          font-size: 11pt;
+          line-height: 1.9;
+        }
+        .spacer { height: 10px; }
+
+        /* ITEMS */
+        .items {
+          margin: 6px 0 6px 70px;
+          font-size: 11pt;
+          line-height: 2;
+        }
+
+        .item {
+          display: flex;
+          align-items: flex-start;
+          margin-bottom: 6px;
+        }
+
+        .arrow { margin-right: 10px; min-width: 18px; }
+        .lbl { font-weight: bold; }
+        .val { font-weight: bold; text-decoration: underline; }
+
+        .parcelle {
+          font-size: 11pt;
+          line-height: 1.7;
+          margin: 12px 0 8px;
+        }
+
+        .tel { font-size: 11pt; margin-top: 6px; }
+
+        .nb {
+          margin-top: 30px;
+          font-size: 9pt;
+          font-style: italic;
+          line-height: 1.4;
+        }
+
+        .qr-block {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin: 10px 0 16px;
+          padding: 8px;
+          border: 1px dashed #999;
+          background: #f8f8f8;
+        }
+        .qr-text {
+          flex: 1;
+          font-size: 9pt;
+          line-height: 1.3;
+          color: #1a1a2e;
+        }
+        .qr-text strong { display: block; margin-bottom: 4px; }
+        .qr-code {
+          width: 100px;
+          min-width: 100px;
+          height: 100px;
+          background: white;
+          border: 1px solid #ccc;
+          padding: 4px;
+        }
+
+        .signature {
+          text-align: right;
+          font-size: 10pt;
+          font-weight: bold;
+          text-decoration: underline;
+          margin-top: 20px;
+        }
+
+        .footer {
+          position: absolute;
+          bottom: 8mm;
+          left: 16mm;
+          right: 16mm;
+          border-top: 2px solid #000;
+          padding-top: 4px;
+          font-size: 7pt;
+          text-align: center;
+          line-height: 1.4;
+        }
+
+        @page {
+          size: A4 portrait;
+          margin: 0;
+        }
+
+        @media print {
+          body { background: none; padding: 0; }
+          .page { box-shadow: none; margin: 0; }
+          .footer {
+            display: block;
+            position: fixed;
+            bottom: 0;
+            left: 16mm;
+            right: 16mm;
+            background: white;
+          }
+          * { -webkit-print-color-adjust: exact; color-adjust: exact; }
+        }
+      </style>
+    </head>
+    <body>
+    <div class="page">
+
+      <div class="top-row">
+        <div class="left-block">
+          <div class="republic">RÉPUBLIQUE DU SÉNÉGAL</div>
+          <div class="motto">Un Peuple – Un But – Une Foi</div>
+          <div class="tiret">—</div>
+          <div class="muctat-box"><span>MUCTAT</span></div>
+
+          <!-- DRAPEAU PLEINE LARGEUR -->
+          <div class="flag">
+            <div class="g"></div>
+            <div class="y"><span class="star">★</span></div>
+            <div class="r"></div>
+          </div>
+
+          <div class="ministry-block">
+            Ministère de l'Urbanisme, des Collectivités<br>
+            Territoriales et de l'Aménagement des Territoires<br>
+            <span class="amp">—</span>
+            Division Régionale de l'Urbanisme, du Logement et de<br>
+            l'Hygiène Publique de Thiès
+          </div>
+        </div>
+
+        <div class="dossier-right">DOSSIER N° ${numeroRecu}</div>
+      </div>
+
+      <!-- TITLE -->
+      <div class="title">RÉCÉPISSÉ DE DÉPÔT</div>
+
+      <!-- BODY -->
+      <div class="body">
+        <p><strong>Il a été déposé à ce jour : ${dateDepot}</strong></p>
+        <p><strong>Par ${civilite ? civilite : requerant}</strong></p>
+        <p><strong>Adresse : ${d.commune || 'Thiès'}</strong></p>
+        <p><strong>Représentant : ${deposePar === 'PROPRIETAIRE' ? ((isEntreprise || isOrganisation) ? 'elle-même' : (isMadame ? 'Elle-même' : 'Lui-même')) : (nom_deposant || 'son représentant légal')}</strong></p>
+        <div class="spacer"></div>
+        <p>Un dossier de demande d'autorisation :</p>
+      </div>
+
+      <!-- ITEMS -->
+      <div class="items">
+        ${d.type_demande === 'CONSTRUCTION' || !d.type_demande ? `
+        <div class="item">
+          <span class="arrow">►</span>
+          <span>
+            <span class="lbl">De construire :</span>
+            <span class="val">Un bâtiment ${d.nb_niveaux === '0' || d.nb_niveaux === 0 ? 'RDC' : 'R+' + (d.nb_niveaux || '4')} à usage ${d.usage || 'habitation et commerce'}</span>
+          </span>
+        </div>` : ''}
+        ${d.type_demande === 'TRANSFORMATION' ? `
+        <div class="item">
+          <span class="arrow">►</span>
+          <span>
+            <span class="lbl">De transformer :</span>
+            <span class="val">Un niveau ${d.niveau_transformation === '0' ? 'RDC' : d.niveau_transformation ? 'R+' + d.niveau_transformation : 'concerné'} d'un bâtiment ${d.usage_actuel ? 'à usage ' + d.usage_actuel : ''} en usage ${d.usage_souhaite || d.usage || 'habitation et commerce'}</span>
+          </span>
+        </div>` : ''}
+        ${d.type_demande === 'SURELEVATION' ? `
+        <div class="item">
+          <span class="arrow">►</span>
+          <span>
+            <span class="lbl">De surélever :</span>
+            <span class="val">Un bâtiment de ${d.nb_niveaux_actuel ? (d.nb_niveaux_actuel === '0' ? 'RDC' : 'R+' + d.nb_niveaux_actuel) : 'RDC'} à ${d.nb_niveaux_apres ? (d.nb_niveaux_apres === '0' ? 'RDC' : 'R+' + d.nb_niveaux_apres) : 'R+' + (d.nb_niveaux || '1')} à usage ${d.usage || 'habitation et commerce'}</span>
+          </span>
+        </div>` : ''}
+      </div>
+
+      <!-- PARCELLE -->
+      <div class="parcelle">
+        Sur la parcelle Lot N° ${d.num_parcelle || '-'} sis à <strong>${d.lotissement || '-'}</strong> dans la commune de <strong>${d.commune || 'Thiès'}</strong>.
+      </div>
+
+      <!-- TEL -->
+      <div class="tel"><strong>Téléphone :</strong> ${d.tel_requerant || '-'}</div>
+
+      <!-- NB -->
+      <div class="nb">
+        * NB : <em>Ce récépissé de dépôt ne fait pas office d'autorisation de<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;construire et n'autorise pas le démarrage des travaux.</em>
+      </div>
+
+      <div class="qr-block">
+        <div class="qr-text">
+          <strong>Scannez ce QR code pour suivre votre dossier</strong>
+        </div>
+        <div class="qr-code">
+          <img src="${qrUrl}" alt="QR code suivi dossier" width="100" height="100">
+        </div>
+      </div>
+
+      <!-- SIGNATURE -->
+      <div class="signature">Le Chef de Division</div>
+
+      <!-- FOOTER -->
+      <div class="footer">
+        Division Régionale de l'Urbanisme du Logement et de l'Hygiène Publique de THIES (DRULHP/TR), Avenue<br>
+       Houphouët Boigny Tel : +221 33 954 04 65 ; E-mail : urbanismthies@gmail.com
+      </div>
+
+    </div>
+    </body>
+    </html>`);
+    w.document.close();
+  }
+  window.onload = () => { 
+    resetForm(); 
+    updateFormLabels();
+    toggleTypeDemandeFields(); // Initialiser l'affichage des champs de type de demande
+    setupNumericValidation(); // Initialiser la validation numérique
+    // Attendre que Chart.js soit bien chargé
+    if(typeof Chart !== 'undefined') {
+      afficherStats(); 
+    } else {
+      console.warn('Chart.js pas encore chargé, nouvelle tentative...');
+      setTimeout(() => {
+        if(typeof Chart !== 'undefined') {
+          afficherStats();
+        }
+      }, 500);
+    }
+  };
+
+  // ===================================================================
+  // GESTION DES UTILISATEURS
+  // ===================================================================
+
+  async function creerCompteUtilisateur() {
+    const fullname = document.getElementById('new_user_fullname').value.trim();
+    const username = document.getElementById('new_user_username').value.trim();
+    const email = document.getElementById('new_user_email').value.trim();
+    const role = document.getElementById('new_user_role').value;
+    const password = document.getElementById('new_user_password').value;
+    const confirm = document.getElementById('new_user_confirm').value;
+
+    if(!fullname || !username || !email || !role || !password || !confirm) {
+      toast('⚠️ Tous les champs sont obligatoires.', 'error');
+      return;
+    }
+
+    if(password.length < 6) {
+      toast('⚠️ Le mot de passe doit contenir au moins 6 caractères.', 'error');
+      return;
+    }
+
+    if(password !== confirm) {
+      toast('⚠️ Les mots de passe ne correspondent pas.', 'error');
+      return;
+    }
+
+    try {
+      const response = await fetch(getApiUrl('auth/register') + '&method=POST', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Role': 'ADMIN' // Indiquer que c'est un admin qui fait la requête
+        },
+        body: JSON.stringify({
+          fullname: fullname,
+          username: username,
+          email: email,
+          role: role,
+          password: btoa(password)
+        })
+      });
+
+      const result = await response.json();
+
+      if(result.status === 201 || result.status === 200) {
+        toast(`✅ Compte ${role} créé avec succès !`, 'success');
+        resetFormUtilisateur();
+        afficherUtilisateurs(); // Rafraîchir la liste
+      } else {
+        toast('❌ Erreur: ' + (result.message || 'Erreur inconnue'), 'error');
+      }
+    } catch(error) {
+      console.error('Erreur lors de la création du compte:', error);
+      toast('⚠️ Erreur de connexion au serveur.', 'error');
+    }
+  }
+
+  function resetFormUtilisateur() {
+    document.getElementById('new_user_fullname').value = '';
+    document.getElementById('new_user_username').value = '';
+    document.getElementById('new_user_email').value = '';
+    document.getElementById('new_user_role').value = 'CONSULTANT';
+    document.getElementById('new_user_password').value = '';
+    document.getElementById('new_user_confirm').value = '';
+  }
+
+  function populateSelect(selectId, options, defaultText, selectedValue = '') {
+    const select = document.getElementById(selectId);
+    if(!select) return;
+    const normalizedSelected = String(selectedValue || '').trim().toLowerCase();
+    select.innerHTML = `<option value="">${defaultText}</option>`;
+    options.forEach(option => {
+      const opt = document.createElement('option');
+      opt.value = option;
+      opt.textContent = option;
+      if(String(option).trim().toLowerCase() === normalizedSelected) {
+        opt.selected = true;
+      }
+      select.appendChild(opt);
+    });
+  }
+
+  function normalizeValue(value) {
+    return String(value || '').trim().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+  }
+
+  function clearFilters() {
+    document.getElementById('filter_commune').value = '';
+    document.getElementById('filter_lotissement').value = '';
+    document.getElementById('filter_annee').value = '';
+    document.getElementById('filter_date_debut').value = '';
+    document.getElementById('filter_date_fin').value = '';
+    document.getElementById('db_search_input').value = '';
+    filtrerDbTable();
+  }
+
+  async function afficherBaseDeDonnees(tableName = 'dossiers', statusFilter = 'TOUS') {
+    const container = document.getElementById('db_table_container');
+    const searchValue = document.getElementById('db_search_input')?.value || '';
+    const statusMap = {
+      'TOUS': 'filter_all',
+      'EN INSTRUCTION': 'filter_instruction',
+      'REJETE': 'filter_rejected',
+      'EN SIGNATURE': 'filter_signature',
+      'INCOMPLETE': 'filter_incomplete'
+    };
+
+    currentDbStatusFilter = String(statusFilter || 'TOUS').toUpperCase();
+
+    Object.keys(statusMap).forEach(status => {
+      const button = document.getElementById(statusMap[status]);
+      if(button) {
+        if(status === currentDbStatusFilter) {
+          button.classList.add('btn-active-filter');
+        } else {
+          button.classList.remove('btn-active-filter');
+        }
+      }
+    });
+
+    tableName = 'dossiers';
+    container.innerHTML = '<div class="empty-state">Chargement des dossiers...</div>';
+
+    try {
+      const response = await fetch(getApiUrl('db') + '&table=' + encodeURIComponent(tableName) + '&method=GET', {
+        method: 'GET',
+        headers: {
+          'X-User-Role': 'ADMIN'
+        }
+      });
+      const result = await response.json();
+
+      if(result.status === 200 && Array.isArray(result.data)) {
+        const allRows = result.data;
+
+        // Collect unique values for filters
+        const communes = [...new Set(allRows.map(r => r.commune).filter(c => c && String(c).trim()).map(c => String(c).trim()))].sort();
+        const lotissements = [...new Set(allRows.map(r => r.lotissement).filter(l => l && String(l).trim()).map(l => String(l).trim()))].sort();
+        const annees = [...new Set(allRows.map(r => r.date_intro ? new Date(r.date_intro).getFullYear() : null).filter(y => y))].sort((a,b) => b-a);
+        const usages = [...new Set(allRows.map(r => r.usage).filter(u => u && String(u).trim()).map(u => String(u).trim().toUpperCase()))].sort();
+
+        // Preserve current filter selection before repopulating selects
+        const currentCommune = document.getElementById('filter_commune')?.value || '';
+        const currentLotissement = document.getElementById('filter_lotissement')?.value || '';
+        const currentAnnee = document.getElementById('filter_annee')?.value || '';
+
+        // Populate selects
+        populateSelect('filter_commune', communes, 'Toutes les communes', currentCommune);
+        populateSelect('filter_lotissement', lotissements, 'Tous les lotissements', currentLotissement);
+        populateSelect('filter_annee', annees.map(y => y.toString()), 'Toutes les années', currentAnnee);
+        if (usages && usages.length) {
+          usageOptions = usages;
+          populateUsageSelect();
+        }
+
+        const statusCounts = {
+          total: allRows.length,
+          complete: allRows.filter(r => String(r.situation_dossier).toUpperCase() === 'COMPLETE').length,
+          en_instruction: allRows.filter(r => String(r.situation_dossier).toUpperCase() === 'EN INSTRUCTION').length,
+          rejete: allRows.filter(r => String(r.situation_dossier).toUpperCase() === 'REJETE').length,
+          en_signature: allRows.filter(r => String(r.situation_dossier).toUpperCase() === 'EN SIGNATURE').length,
+          incomplete: allRows.filter(r => String(r.situation_dossier).toUpperCase() === 'INCOMPLETE').length,
+          arrete: allRows.filter(r => String(r.situation_dossier).toUpperCase() === 'ARRETE').length,
+          quittance: allRows.filter(r => String(r.situation_dossier).toUpperCase() === 'QUITTANCE NON PAYEE').length
+        };
+
+        let rows = allRows;
+        
+        if(currentDbStatusFilter !== 'TOUS') {
+          rows = rows.filter(r => String(r.situation_dossier).toUpperCase() === currentDbStatusFilter);
+        }
+
+        if(searchValue) {
+          rows = rows.filter(row => JSON.stringify(row).toLowerCase().includes(searchValue.toLowerCase()));
+        }
+
+        // Apply advanced filters
+        const filterCommune = normalizeValue(document.getElementById('filter_commune')?.value || '');
+        const filterLotissement = normalizeValue(document.getElementById('filter_lotissement')?.value || '');
+        const filterAnnee = (document.getElementById('filter_annee')?.value || '').trim();
+        const filterDateDebut = document.getElementById('filter_date_debut')?.value || '';
+        const filterDateFin = document.getElementById('filter_date_fin')?.value || '';
+
+        if(filterCommune) {
+          rows = rows.filter(r => r.commune && normalizeValue(r.commune) === filterCommune);
+        }
+        if(filterLotissement) {
+          rows = rows.filter(r => r.lotissement && normalizeValue(r.lotissement) === filterLotissement);
+        }
+        if(filterAnnee) {
+          rows = rows.filter(r => r.date_intro && new Date(r.date_intro).getFullYear().toString() === filterAnnee);
+        }
+        if(filterDateDebut) {
+          const debutDate = new Date(filterDateDebut);
+          rows = rows.filter(r => r.date_intro && new Date(r.date_intro) >= debutDate);
+        }
+        if(filterDateFin) {
+          const finDate = new Date(filterDateFin);
+          finDate.setHours(23, 59, 59, 999); // Fin de journée
+          rows = rows.filter(r => r.date_intro && new Date(r.date_intro) <= finDate);
+        }
+
+        if(rows.length === 0) {
+          container.innerHTML = '<div class="empty-state">Aucun dossier ne correspond aux filtres sélectionnés.</div>';
+          document.getElementById('filtered_count').textContent = '0';
+          return;
+        }
+
+        document.getElementById('filtered_count').textContent = rows.length;
+
+        const hiddenColumns = ['avis_urbanisme', 'avis_cadastre', 'avis_domaine', 'avis_ageroute', 'created_by', 'updated_by', 'created_at', 'updated_at', 'commune_id', 'lotissement_id'];
+        const keys = Object.keys(rows[0]).filter(k => !hiddenColumns.includes(k.toLowerCase()));
+        const isDossiers = tableName === 'dossiers';
+        const hasActions = ['dossiers', 'users', 'dossier_history', 'avis_services'].includes(tableName);
+        let headerColumns = keys.map(k => '<th>' + k + '</th>');
+        if(hasActions) headerColumns.push('<th>Actions</th>');
+        let html = '<div class="table-wrap"><table><thead><tr>' + headerColumns.join('') + '</tr></thead><tbody>';
+
+        rows.forEach(row => {
+          const rowString = JSON.stringify(row).toLowerCase();
+          const cells = keys.map(k => {
+            let value = (row[k] !== null && row[k] !== undefined ? row[k] : '');
+            if(k === 'situation_dossier') {
+              const statusClass = 'status-pill status-' + String(value).toLowerCase().replace(/\s+/g, '-');
+              return '<td><span class="' + statusClass + '">' + value + '</span></td>';
+            }
+            return '<td>' + value + '</td>';
+          });
+          if(hasActions) {
+            const actions = [];
+            if(isDossiers) {
+              actions.push('<button class="btn btn-outline btn-sm" onclick="event.stopPropagation(); chargerDossierDepuisDb(' + row.id + ')">✏️ Modifier</button>');
+              actions.push(`<button class="btn btn-outline btn-sm" onclick="event.stopPropagation(); afficherAvisDossier(${row.id}, '${String(row.num_dossier).replace(/'/g, "\\'")}')">📝 Avis</button>`);
+              actions.push('<button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); deleteDbRow(\'dossiers\', \'' + row.id + '\')">🗑️ Supprimer</button>');
+            }
+            cells.push('<td style="white-space: nowrap;">' + actions.join(' ') + '</td>');
+          }
+          html += '<tr' + (isDossiers ? ' onclick="chargerDossierDepuisDb(' + row.id + ')" style="cursor:pointer;"' : '') + '>' + cells.join('') + '</tr>';
+        });
+
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+      } else {
+        container.innerHTML = '<div class="empty-state">❌ Erreur lors du chargement des dossiers</div>';
+      }
+    } catch(error) {
+      console.error('Erreur base de données:', error);
+      container.innerHTML = '<div class="empty-state">Erreur de connexion à l’API</div>';
+    }
+  }
+
+  function filtrerDbTable() {
+    afficherBaseDeDonnees('dossiers', currentDbStatusFilter);
+  }
+
+  function filtrerParStatut(status) {
+    if(!status) status = 'TOUS';
+    currentDbStatusFilter = String(status).toUpperCase();
+    afficherBaseDeDonnees('dossiers', currentDbStatusFilter);
+  }
+
+  async function chargerDossierDepuisDb(id) {
+    if(!id) return;
+    try {
+      const dossier = await SupabaseClient.getDossier(id);
+      if(dossier) {
+        setForm(dossier);
+        showTab('saisie');
+        toast('Dossier chargé pour modification', 'success');
+      } else {
+        toast('Dossier introuvable', 'error');
+      }
+    } catch(error) {
+      console.error('Erreur chargement dossier depuis DB:', error);
+      toast('Erreur lors du chargement du dossier', 'error');
+    }
+  }
+
+  async function afficherUtilisateurs() {
+    const container = document.getElementById('users_list_container');
+    
+    try {
+      // Récupérer les utilisateurs depuis Supabase
+      const response = await fetch(getApiUrl('users') + '&method=GET', {
+        headers: {
+          'X-User-Role': 'ADMIN'
+        }
+      });
+      
+      const result = await response.json();
+      
+      if(result.status === 200 && result.data) {
+        const users = result.data;
+        
+        if(users.length === 0) {
+          container.innerHTML = '<div class="empty-state">Aucun utilisateur trouvé</div>';
+          return;
+        }
+
+        let html = '<div class="table-wrap"><table><thead><tr><th>Nom complet</th><th>Nom d\'utilisateur</th><th>Email</th><th>Rôle</th><th>Actions</th></tr></thead><tbody>';
+        
+        users.forEach(user => {
+          const roleBadge = user.role === 'ADMIN' ? '<span class="role-badge role-admin">👑 ADMIN</span>' : '<span class="role-badge role-consultant">👁️ CONSULTANT</span>';
+          html += `<tr>
+            <td>${user.fullname || user.username}</td>
+            <td>${user.username}</td>
+            <td>${user.email}</td>
+            <td>${roleBadge}</td>
+            <td>
+              <button class="btn btn-danger btn-sm" onclick="supprimerUtilisateur('${user.id}')">🗑️</button>
+            </td>
+          </tr>`;
+        });
+        
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+      } else {
+        container.innerHTML = '<div class="empty-state">Erreur lors du chargement des utilisateurs</div>';
+      }
+    } catch(error) {
+      console.error('Erreur lors du chargement des utilisateurs:', error);
+      container.innerHTML = '<div class="empty-state">Erreur de connexion</div>';
+    }
+  }
+
+  async function supprimerUtilisateur(userId) {
+    if(!confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(getApiUrl('users/' + userId) + '&method=DELETE', {
+        method: 'DELETE',
+        headers: {
+          'X-User-Role': 'ADMIN'
+        }
+      });
+
+      const result = await response.json();
+
+      if(result.status === 200) {
+        toast('✅ Utilisateur supprimé', 'success');
+        afficherUtilisateurs(); // Rafraîchir la liste
+      } else {
+        toast('❌ Erreur lors de la suppression', 'error');
+      }
+    } catch(error) {
+      console.error('Erreur lors de la suppression:', error);
+      toast('⚠️ Erreur de connexion', 'error');
+    }
+  }
+
+  async function deleteDbRow(tableName, id) {
+    if(!confirm(`Supprimer cette ligne de ${tableName} ?`)) return;
+
+    try {
+      const response = await fetch(getApiUrl('db') + '&method=DELETE&table=' + encodeURIComponent(tableName) + '&id=' + encodeURIComponent(id), {
+        method: 'DELETE'
+      });
+
+      const result = await response.json();
+      if(result.status === 200) {
+        toast('✅ Ligne supprimée', 'success');
+        afficherBaseDeDonnees(tableName);
+      } else {
+        toast('❌ Erreur lors de la suppression', 'error');
+      }
+    } catch(error) {
+      console.error('Erreur suppression DB:', error);
+      toast('⚠️ Erreur de connexion', 'error');
+    }
+  }
+
+  function exportDbToCsv() {
+    const table = document.querySelector('#view-db .table-wrap table');
+    if (!table) {
+      toast('Aucune table disponible pour l’export', 'error');
+      return;
+    }
+    const rows = Array.from(table.querySelectorAll('tr')).map(row => {
+      return Array.from(row.querySelectorAll('th, td')).map(cell => {
+        const text = cell.textContent.trim().replace(/"/g, '""');
+        return '"' + text + '"';
+      }).join(';');
+    }).join('\n');
+    const blob = new Blob([rows], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'base_donnees.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast('✅ Export CSV généré', 'success');
+  }
+
+  async function afficherHistoriqueAvis() {
+    try {
+      const response = await fetch(getApiUrl('avis') + '&method=GET', {
+        method: 'GET',
+        headers: {
+          'X-User-Role': getSessionUser()?.role || 'ADMIN'
+        }
+      });
+
+      const result = await response.json();
+      const modal = document.getElementById('historique_modal');
+      const body = document.getElementById('historique_modal_body');
+      const headerTitle = document.querySelector('#historique_modal_header h2');
+
+      if(headerTitle) headerTitle.textContent = '📋 Historique des avis de service';
+
+      if(result.status === 200 && result.data) {
+        const avis = result.data;
+        
+        let html = `
+          <div class="table-wrap" style="max-height: 600px; overflow-y: auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Service</th>
+                  <th>Statut</th>
+                  <th>Observation</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+        
+        if(avis.length === 0) {
+          html += '<tr><td colspan="3" style="text-align:center;">Aucun avis trouvé</td></tr>';
+        } else {
+          avis.forEach(item => {
+            html += `
+              <tr>
+                <td>${item.service_name || 'N/A'}</td>
+                <td>${item.avis || 'N/A'}</td>
+                <td>${item.observation || '-'}</td>
+              </tr>
+            `;
+          });
+        }
+
+        html += `
+              </tbody>
+            </table>
+          </div>
+        `;
+
+        if(body) body.innerHTML = html;
+        if(modal) modal.classList.add('show');
+        toast('✅ Historique chargé', 'success');
+      } else {
+        if(body) body.innerHTML = '<div class="empty-state">❌ Erreur lors du chargement de l’historique des avis</div>';
+        if(modal) modal.classList.add('show');
+        toast('❌ Erreur chargement historique', 'error');
+      }
+    } catch(error) {
+      console.error('Erreur chargement historique avis:', error);
+      const modal = document.getElementById('historique_modal');
+      const body = document.getElementById('historique_modal_body');
+      if(body) body.innerHTML = '<div class="empty-state">⚠️ Erreur de connexion</div>';
+      if(modal) modal.classList.add('show');
+      toast('⚠️ Erreur de connexion', 'error');
+    }
+  }
+
+  async function afficherAvisDossier(dossierId, dossierLabel) {
+    if(!dossierId) {
+      toast('⚠️ Identifiant de dossier manquant', 'error');
+      return;
+    }
+
+    try {
+      const response = await fetch(getApiUrl('avis') + '&method=GET&dossier_id=' + encodeURIComponent(dossierId), {
+        method: 'GET',
+        headers: {
+          'X-User-Role': getSessionUser()?.role || 'ADMIN'
+        }
+      });
+
+      const result = await response.json();
+      const modal = document.getElementById('historique_modal');
+      const body = document.getElementById('historique_modal_body');
+      const headerTitle = document.querySelector('#historique_modal_header h2');
+
+      if(headerTitle) headerTitle.textContent = `📋 Avis du dossier ${dossierLabel || dossierId}`;
+
+      if(result.status === 200 && Array.isArray(result.data)) {
+        const avis = result.data;
+        let html = `
+          <div class="table-wrap" style="max-height: 600px; overflow-y: auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Service</th>
+                  <th>Statut</th>
+                  <th>Observation</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+
+        if(avis.length === 0) {
+          html += '<tr><td colspan="3" style="text-align:center;">Aucun avis trouvé pour ce dossier</td></tr>';
+        } else {
+          avis.forEach(item => {
+            html += `
+              <tr>
+                <td>${item.service_name || 'N/A'}</td>
+                <td>${item.avis || 'N/A'}</td>
+                <td>${item.observation || '-'}</td>
+              </tr>
+            `;
+          });
+        }
+
+        html += `
+              </tbody>
+            </table>
+          </div>
+        `;
+
+        if(body) body.innerHTML = html;
+        if(modal) modal.classList.add('show');
+      } else {
+        if(body) body.innerHTML = '<div class="empty-state">❌ Erreur lors du chargement des avis</div>';
+        if(modal) modal.classList.add('show');
+      }
+    } catch(error) {
+      console.error('Erreur affichage avis dossier:', error);
+      const modal = document.getElementById('historique_modal');
+      const body = document.getElementById('historique_modal_body');
+      if(body) body.innerHTML = '<div class="empty-state">⚠️ Erreur de connexion</div>';
+      if(modal) modal.classList.add('show');
+      toast('⚠️ Impossible de charger les avis', 'error');
+    }
+  }
+
+  // Fonction pour créer les dossiers physiques lors de la création d'un dossier
+  async function creerDossiersPhysiques(numDossier) {
+    try {
+      // Vérifier que le numéro de dossier est valide
+      if (!numDossier || numDossier === 'undefined' || numDossier === '') {
+        console.warn('⚠️ Numéro de dossier invalide pour créer les dossiers physiques:', numDossier);
+        return;
+      }
+
+      // Nettoyer le numéro de dossier pour créer un nom de dossier valide
+      const nomDossier = String(numDossier).replace(/[^a-zA-Z0-9\-_]/g, '_');
+      
+      // Chemin de base pour les permis de construire
+      const basePath = 'C:\\Users\\dell\\Documents\\permis_de_construire';
+      const dossierPath = `${basePath}\\${nomDossier}`;
+      
+      console.log('Création des dossiers physiques pour:', nomDossier);
+      
+      // Créer le dossier principal du permis de construire
+      const baseCreated = await creerDossierPhysique(basePath);
+      if (!baseCreated) {
+        console.warn('⚠️ Impossible de créer le dossier de base, mais continuation...');
+      }
+
+      // Créer le sous-dossier avec le numéro du dossier
+      const dossierCreated = await creerDossierPhysique(dossierPath);
+      if (!dossierCreated) {
+        console.warn('⚠️ Impossible de créer le dossier du permis, mais continuation...');
+      }
+
+      // Créer les sous-dossiers "avis" et "arreté"
+      const avisCreated = await creerDossierPhysique(`${dossierPath}\\avis`);
+      const arreteCreated = await creerDossierPhysique(`${dossierPath}\\arreté`);
+
+      if (avisCreated && arreteCreated) {
+        console.log('✅ Dossiers physiques créés avec succès');
+      } else {
+        console.warn('⚠️ Certains sous-dossiers n\'ont pas pu être créés');
+      }
+
+    } catch(error) {
+      console.error('Erreur lors de la création des dossiers physiques:', error);
+      // Ne pas afficher de toast d'erreur pour ne pas bloquer la création du dossier
+      // car la fonctionnalité principale (enregistrement en base) doit fonctionner même si la création de dossiers échoue
+    }
+  }
+
+  // Fonction utilitaire pour créer un dossier physique
+  async function creerDossierPhysique(chemin) {
+    try {
+      const apiBase = window.location.pathname.includes('/web/') ? '/web/api/' : '/api/';
+      const response = await fetch(apiBase + 'creer-dossier.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ chemin: chemin })
+      });
+
+      const result = await response.json();
+
+      if (result.status === 200) {
+        console.log('✅ Dossier créé:', chemin);
+        return true;
+      } else {
+        console.error('❌ Erreur création dossier:', result.message, chemin);
+        return false;
+      }
+    } catch(error) {
+      console.error('Erreur lors de l\'appel API création dossier:', error);
+      return false;
+    }
+  }
+
+  // Fonction pour animer les compteurs
+  function animateCounters() {
+    const counters = document.querySelectorAll('.key-stat-value');
+    
+    counters.forEach(counter => {
+      const target = parseFloat(counter.getAttribute('data-target'));
+      const isFloat = target % 1 !== 0;
+      const duration = 2000; // 2 secondes
+      const step = target / (duration / 16); // 60 FPS
+      let current = 0;
+      
+      const label = counter.nextElementSibling.textContent.toLowerCase();
+      const isTaxes = label.includes('taxes');
+      const isPercentage = label.includes('acceptation');
+      const isSurface = label.includes('surf');
+      
+      const timer = setInterval(() => {
+        current += step;
+        if (current >= target) {
+          current = target;
+          clearInterval(timer);
+        }
+        
+        if (isTaxes) {
+          counter.textContent = current.toFixed(1) + 'M';
+        } else if (isPercentage) {
+          counter.textContent = Math.floor(current) + '%';
+        } else if (isSurface) {
+          counter.textContent = Math.floor(current) + 'm²';
+        } else if (isFloat) {
+          counter.textContent = current.toFixed(1);
+        } else {
+          counter.textContent = Math.floor(current);
+        }
+      }, 16);
+    });
+  }
+</script>
+
+<div id="modal-ajout" class="modal hidden" onclick="if(event.target===this) fermerModalAjout()">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-header">
+      <div>
+        <h3 id="modal-title">Ajouter</h3>
+        <p id="modal-subtitle">Saisissez le nom</p>
+      </div>
+      <button type="button" class="modal-close" onclick="fermerModalAjout()" aria-label="Fermer">✕</button>
+    </div>
+    <div class="modal-body">
+      <label for="modal-nom">Nom</label>
+      <input id="modal-nom" class="modal-input" type="text" />
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" onclick="fermerModalAjout()">Annuler</button>
+      <button type="button" class="btn btn-primary" onclick="validerModalAjout()">Ajouter</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
