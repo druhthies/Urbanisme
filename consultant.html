@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>MUCTAT — Suivi des Dossiers · Thiès</title>
+<link rel="icon" type="image/jpeg" href="images/muctat-logo.jpg">
+<script>
+  // ============================================================
+  // SYSTÈME DE STOCKAGE ROBUSTE (localStorage + fallback mémoire)
+  // ============================================================
+  const secureStorage = {
+    _cache: {}, // Fallback en mémoire si localStorage indisponible
+    _available: false,
+    
+    init() {
+      try {
+        const test = '__test__';
+        localStorage.setItem(test, test);
+        localStorage.removeItem(test);
+        this._available = true;
+        console.log('✅ localStorage disponible');
+      } catch(e) {
+        this._available = false;
+        console.warn('⚠️ localStorage indisponible - utilisation de la mémoire locale');
+      }
+    },
+    
+    setItem(key, value) {
+      if(this._available) {
+        try {
+          localStorage.setItem(key, value);
+        } catch(e) {
+          console.warn(`Fallback pour ${key}:`, e.message);
+          this._cache[key] = value;
+        }
+      } else {
+        this._cache[key] = value;
+      }
+    },
+    
+    getItem(key) {
+      if(this._available) {
+        try {
+          return localStorage.getItem(key);
+        } catch(e) {
+          console.warn(`Fallback lecture ${key}:`, e.message);
+          return this._cache[key] || null;
+        }
+      } else {
+        return this._cache[key] || null;
+      }
+    },
+    
+    removeItem(key) {
+      if(this._available) {
+        try {
+          localStorage.removeItem(key);
+        } catch(e) {
+          console.warn(`Fallback suppression ${key}:`, e.message);
+          delete this._cache[key];
+        }
+      } else {
+        delete this._cache[key];
+      }
+    }
+  };
+
+  // Initialiser le stockage sécurisé
+  secureStorage.init();
+</script>
+<style>
+  :root {
+    --sen-green: #00853F;
+    --sen-yellow: #FDEF42;
+    --sen-red: #E31B23;
+    --navy: #0B3D6E;
+    --navy-mid: #185FA5;
+    --navy-light: #D6E8F7;
+    --navy-xlight: #EEF5FC;
+    --gold: #C49A2B;
+    --text: #1A1A2E;
+    --text-muted: #5A6A7A;
+    --surface: #FFFFFF;
+    --surface-alt: #F4F7FB;
+    --border: #D4DEE8;
+    --border-light: #E8EEF4;
+    --danger: #C0392B;
+    --danger-light: #FDECEC;
+    --success: #1A6B3A;
+    --success-light: #E8F5EE;
+    --radius: 8px;
+    --radius-lg: 12px;
+    --shadow: 0 1px 4px rgba(11,61,110,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Source Sans 3', sans-serif;
+    background: var(--surface-alt);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .page-header {
+    background: var(--navy);
+    color: white;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(11,61,110,0.25);
+  }
+  .header-flag { display: flex; height: 4px; }
+  .header-flag span { flex: 1; }
+  .header-inner {
+    max-width: 1400px;
+    margin: auto;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .header-seal {
+    width: 60px;
+    height: 40px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+  .header-text { flex: 1; }
+  .header-text .republic { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sen-yellow); font-weight: 500; }
+  .header-text h1 { font-family: 'Playfair Display', serif; font-size: 17px; font-weight: 600; }
+  .header-text .sub { font-size: 11px; color: rgba(255,255,255,0.7); }
+  .header-badge { background: var(--gold); color: white; font-size: 12px; font-weight: 600; padding: 4px 14px; border-radius: 20px; }
+  .page-body { max-width: 1400px; margin: auto; padding: 24px; }
+  .tabs {
+    display: flex;
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 5px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .tab-btn {
+    padding: 8px 24px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .tab-btn:hover { color: var(--navy); background: var(--navy-xlight); }
+  .tab-btn.active { background: var(--navy); color: white; }
+  .tab-btn .count { background: rgba(255,255,255,0.25); font-size: 11px; padding: 1px 7px; border-radius: 10px; }
+  .tab-btn:not(.active) .count { background: var(--navy-light); color: var(--navy); }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .card-header {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .card-header-icon { width: 34px; height: 34px; background: rgba(255,255,255,0.15); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .card-header-text h2 { font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 600; color: white; }
+  .card-header-text p { font-size: 12px; color: rgba(255,255,255,0.7); }
+  .card-body { padding: 26px 24px; }
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--navy);
+    margin: 20px 0 16px 0;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--navy-light);
+  }
+  .section-label:first-of-type { margin-top: 0; }
+  .section-label::before { content: ''; width: 4px; height: 16px; background: var(--gold); border-radius: 2px; }
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g3 { grid-template-columns: 1fr 1fr 1fr; }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 11px; font-weight: 600; color: var(--text-muted); }
+  .field-value { font-size: 13px; font-weight: 500; color: var(--text); padding: 8px 10px; background: var(--surface-alt); border-radius: var(--radius); }
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .timeline-item {
+    display: flex;
+    gap: 16px;
+    padding: 16px;
+    background: var(--surface-alt);
+    border-radius: var(--radius);
+    border-left: 4px solid var(--gold);
+  }
+  .timeline-marker {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    background: var(--navy);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 14px;
+  }
+  .timeline-content h3 { font-size: 12px; font-weight: 600; color: var(--navy); margin-bottom: 4px; }
+  .timeline-content p { font-size: 11px; color: var(--text-muted); }
+  .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); max-height: 500px; overflow-y: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  thead { background: var(--navy); position: sticky; top: 0; }
+  thead th { padding: 8px 6px; text-align: left; font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.85); white-space: nowrap; }
+  tbody tr { border-bottom: 1px solid var(--border-light); cursor: pointer; }
+  tbody tr:hover { background: var(--navy-xlight); }
+  tbody td { padding: 8px 6px; white-space: nowrap; }
+  .td-num { font-weight: 700; color: var(--navy); font-family: monospace; }
+  .empty-state { text-align: center; padding: 48px; color: var(--text-muted); }
+  .search-wrap { flex: 1; position: relative; }
+  .search-wrap input { width: 100%; padding: 8px 12px 8px 32px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 12px; }
+  .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 12px; }
+  .list-toolbar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+  .status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .status-en-instruction { background: #FFF3CD; color: #856404; }
+  .status-complete { background: #D4EDDA; color: #155724; }
+  .status-arrete { background: #D1ECF1; color: #0C5460; }
+  .status-rejete { background: #F8D7DA; color: #721C24; }
+  #toast {
+    position: fixed; bottom: 24px; right: 24px;
+    padding: 10px 18px; border-radius: var(--radius);
+    font-size: 12px; font-weight: 500; z-index: 1000;
+    transform: translateY(20px); opacity: 0; transition: 0.3s;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  #toast.success { background: var(--success); color: white; }
+  #toast.error { background: var(--danger); color: white; }
+  #toast.info { background: var(--navy); color: white; }
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: white;
+    font-size: 12px;
+  }
+  .logout-btn {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 6px 12px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: 0.2s;
+  }
+  .logout-btn:hover { background: rgba(255,255,255,0.3); }
+  @media (max-width: 900px) { .g4 { grid-template-columns: repeat(2,1fr); } .g3 { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 600px) { .g2, .g3, .g4 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header class="page-header">
+  <div class="header-flag"><span style="background:#00853F;"></span><span style="background:#FDEF42;"></span><span style="background:#E31B23;"></span></div>
+  <div class="header-inner">
+    <img src="images/senegal.png" alt="Drapeau du Sénégal" class="header-seal">
+    <div class="header-text">
+      <div class="republic">République du Sénégal · Un Peuple · Un But · Une Foi</div>
+      <h1>Ministère de l'Urbanisme, des Collectivités Territoriales</h1>
+      <div class="sub">Division Régionale de l'Urbanisme, du Logement et de l'Hygiène Publique de Thiès</div>
+    </div>
+    <div class="header-badge">MUCTAT</div>
+    <div class="user-info">
+      <span id="user-display">Consultant</span>
+      <button class="logout-btn" onclick="logout()">Déconnexion</button>
+    </div>
+  </div>
+</header>
+
+<main class="page-body">
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('liste')"><span>📁</span> Dossiers</button>
+    <button class="tab-btn" onclick="showTab('detail')"><span>📋</span> Détail <span id="detail-badge"></span></button>
+  </div>
+
+  <!-- VUE LISTE -->
+  <div id="view-liste">
+    <div class="card">
+      <div class="card-header"><div class="card-header-icon">📂</div><div class="card-header-text"><h2>Suivi des dossiers</h2><p>Cliquez sur un dossier pour voir son évolution</p></div></div>
+      <div class="card-body">
+        <div class="list-toolbar">
+          <div class="search-wrap"><span class="search-icon">🔍</span><input type="text" id="search_input" placeholder="Rechercher un dossier..." oninput="afficherListe(this.value)"></div>
+        </div>
+        <div id="liste_container"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VUE DETAIL -->
+  <div id="view-detail" style="display:none;">
+    <div class="card">
+      <div class="card-header"><div class="card-header-icon">📋</div><div class="card-header-text"><h2 id="detail-title">Dossier</h2><p id="detail-subtitle">Évolution du dossier</p></div></div>
+      <div class="card-body">
+        <button class="btn" onclick="showTab('liste')" style="padding: 8px 16px; background: var(--navy); color: white; border: none; border-radius: var(--radius); cursor: pointer; margin-bottom: 20px; font-size: 12px;">← Retour à la liste</button>
+        
+        <div class="section-label">Identification</div>
+        <div class="grid g3">
+          <div class="field"><label>N° DOSSIER</label><div class="field-value" id="detail_num_dossier">-</div></div>
+          <div class="field"><label>Date d'introduction</label><div class="field-value" id="detail_date_intro">-</div></div>
+          <div class="field"><label>Civilité</label><div class="field-value" id="detail_civilite">-</div></div>
+        </div>
+        <div class="grid g3">
+          <div class="field"><label>Requérant</label><div class="field-value" id="detail_requerant">-</div></div>
+          <div class="field"><label>Tél Requérant</label><div class="field-value" id="detail_tel_requerant">-</div></div>
+          <div class="field"><label>Déposé par</label><div class="field-value" id="detail_depose_par">-</div></div>
+        </div>
+        <div class="grid g3">
+          <div class="field"><label>N° de parcelle</label><div class="field-value" id="detail_num_parcelle">-</div></div>
+          <div class="field"><label>COMMUNE</label><div class="field-value" id="detail_commune">-</div></div>
+          <div class="field"><label>LOTISSEMENT</label><div class="field-value" id="detail_lotissement">-</div></div>
+        </div>
+        <div class="field" id="detail_nom_deposant_field" style="display:none;"><label>Nom du déposant</label><div class="field-value" id="detail_nom_deposant">-</div></div>
+
+        <div class="section-label">Caractéristiques projet</div>
+        <div class="grid g4">
+          <div class="field"><label>Superficie parcelle (m²)</label><div class="field-value" id="detail_superficie_parcelle">-</div></div>
+          <div class="field"><label>Superficie bâtie (m²)</label><div class="field-value" id="detail_superficie_batie">-</div></div>
+          <div class="field"><label>Nbre de niveaux</label><div class="field-value" id="detail_nb_niveaux">-</div></div>
+          <div class="field"><label>USAGE</label><div class="field-value" id="detail_usage">-</div></div>
+        </div>
+
+        <div class="section-label">Taxes</div>
+        <div class="grid g4">
+          <div class="field"><label>Taxe Urbanisme (FCFA)</label><div class="field-value" id="detail_taxe_urbanisme">-</div></div>
+          <div class="field"><label>Taxe Municipale (FCFA)</label><div class="field-value" id="detail_taxe_municipale">-</div></div>
+          <div class="field"><label>Autres Taxes (FCFA)</label><div class="field-value" id="detail_autres_taxes">-</div></div>
+        </div>
+
+        <div class="section-label">État actuel</div>
+        <div class="grid g3">
+          <div class="field"><label>SITUATION DOSSIER</label><div class="field-value" id="detail_situation_dossier">-</div></div>
+          <div class="field"><label>DATE TRANSMISSION</label><div class="field-value" id="detail_date_transmission">-</div></div>
+          <div class="field"><label>Date de Signature</label><div class="field-value" id="detail_date_signature">-</div></div>
+        </div>
+
+        <div class="section-label">Avis des services</div>
+        <div class="timeline" id="timeline_container"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script>
+  // Déterminer le chemin API en fonction du contexte
+  function getApiUrl(path) {
+    return '/web/api/index.php?route=' + path;
+  }
+
+  let dossiers = [];
+  let dossiersClients = []; // Dossiers associés au consultant
+
+  function getSessionRaw() {
+    // 1. Essayer paramètres URL d'abord (pour la redirection depuis login)
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionParam = urlParams.get('session');
+      if(sessionParam) {
+        console.log('✅ Session trouvée dans paramètres URL');
+        const decoded = decodeURIComponent(atob(sessionParam));
+        // Sauvegarder dans les autres systèmes si possible
+        saveSessionToAvailableStorage(decoded);
+        return decoded;
+      }
+    } catch(e) {
+      console.warn('Paramètres URL indisponibles:', e);
+    }
+
+    // 2. Essayer cookies
+    try {
+      const cookies = document.cookie.split(';');
+      for(let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if(name === 'muctat_session') {
+          console.log('✅ Session trouvée dans cookies');
+          return decodeURIComponent(atob(value));
+        }
+      }
+    } catch(e) {
+      console.warn('Cookies indisponibles:', e);
+    }
+
+    // 3. Essayer variable globale
+    try {
+      if(window.muctatSession) {
+        console.log('✅ Session trouvée dans variable globale');
+        return window.muctatSession;
+      }
+    } catch(e) {
+      console.warn('Variable globale indisponible:', e);
+    }
+
+    // 4. Fallback vers sessionStorage/localStorage
+    try {
+      const session = sessionStorage.getItem('muctat_session');
+      if(session) return session;
+    } catch(e) {}
+
+    try {
+      const local = secureStorage.getItem('muctat_session');
+      if(local) return local;
+    } catch(e) {}
+
+    console.warn('❌ Aucune session trouvée');
+    return null;
+  }
+
+  function saveSessionToAvailableStorage(data) {
+    // Essayer de sauvegarder dans tous les systèmes disponibles
+    try {
+      document.cookie = 'muctat_session=' + btoa(encodeURIComponent(data)) + '; path=/; max-age=3600; SameSite=Lax';
+    } catch(e) {}
+
+    try {
+      window.muctatSession = data;
+    } catch(e) {}
+
+    try {
+      sessionStorage.setItem('muctat_session', data);
+    } catch(e) {}
+
+    try {
+      secureStorage.setItem('muctat_session', data);
+    } catch(e) {}
+  }
+
+  function clearSession() {
+    // Supprimer tous les systèmes de stockage
+    try {
+      document.cookie = 'muctat_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    } catch(e) {}
+
+    try {
+      delete window.muctatSession;
+    } catch(e) {}
+
+    try {
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.delete('session');
+      window.history.replaceState({}, '', currentUrl.toString());
+    } catch(e) {}
+
+    try {
+      sessionStorage.removeItem('muctat_session');
+    } catch(e) {}
+
+    try {
+      secureStorage.removeItem('muctat_session');
+    } catch(e) {}
+  }
+
+  function checkSession() {
+    const session = getSessionRaw();
+    console.log('checkSession - session:', session);
+    
+    if(!session) {
+      console.warn('Pas de session trouvée!');
+      window.location.href = 'index.html';
+      return null;
+    }
+    
+    try {
+      const user = JSON.parse(session);
+      console.log('checkSession - user:', user);
+      
+      if(!user || !user.role) {
+        console.error('Session invalide - pas de rôle');
+        clearSession();
+        window.location.href = 'index.html';
+        return null;
+      }
+      
+      if(user.role !== 'CONSULTANT') {
+        console.error('Rôle incorrecte:', user.role, '(attendu: CONSULTANT)');
+        clearSession();
+        window.location.href = 'index.html';
+        return null;
+      }
+      
+      document.getElementById('user-display').textContent = `👁️ ${user.fullname}`;
+      console.log('✅ Session valide pour', user.username);
+      return user;
+    } catch(e) {
+      console.error('Erreur parsing session:', e);
+      clearSession();
+      window.location.href = 'index.html';
+      return null;
+    }
+  }
+
+  function logout() {
+    if(confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
+      clearSession();
+      window.location.href = 'index.html?logout=1';
+    }
+  }
+
+  // Charger les dossiers depuis Supabase
+  function chargerDossiersSupabase() {
+    console.log('Chargement des dossiers depuis Supabase...');
+    fetch(getApiUrl('dossiers') + '&method=GET')
+      .then(r => r.json())
+      .then(data => {
+        console.log('Réponse API:', data);
+        if(data.status === 200 && data.data) {
+          dossiers = Array.isArray(data.data) ? data.data : [];
+          console.log(`${dossiers.length} dossiers chargés`);
+          const _cb = document.getElementById('count-badge'); if(_cb) _cb.textContent = dossiers.length;
+          afficherListe();
+        } else {
+          console.error('Erreur API:', data.message);
+          toast('Erreur lors du chargement des dossiers', 'error');
+        }
+      })
+      .catch(e => {
+        console.error('Erreur fetch:', e);
+        toast('Erreur de connexion à l\'API', 'error');
+      });
+  }
+
+  function showTab(tab) {
+    document.getElementById('view-liste').style.display = tab === 'liste' ? 'block' : 'none';
+    document.getElementById('view-detail').style.display = tab === 'detail' ? 'block' : 'none';
+    if(tab === 'liste') afficherListe();
+  }
+
+  function afficherListe(filtre='') {
+    const container = document.getElementById('liste_container');
+    let list = dossiers;
+    if(filtre) list = dossiers.filter(d => JSON.stringify(d).toLowerCase().includes(filtre.toLowerCase()));
+    if(!list.length) { container.innerHTML = `<div class="empty-state">📂 Aucun dossier</div>`; return; }
+    
+    container.innerHTML = `<div class="table-wrap"><table><thead><tr>
+      <th>N° DOSSIER</th><th>Date intro</th><th>Commune</th><th>Requérant</th><th>Situation</th><th>Taxe Urb.</th>
+    </tr></thead><tbody>
+      ${list.map(d => `<tr onclick="chargerDossier('${d.num_dossier}')">
+        <td class="td-num">${d.num_dossier}</td><td>${d.date_intro||''}</td><td>${d.commune||''}</td><td>${d.requerant||''}</td><td><span class="status-badge status-${(d.situation_dossier||'').toLowerCase().replace(/\s+/g,'-')}">${d.situation_dossier||''}</span></td><td>${d.taxe_urbanisme||''}</td>
+      </tr>`).join('')}
+    </tbody></table></div>`;
+    const _cb2 = document.getElementById('count-badge'); if(_cb2) _cb2.textContent = list.length;
+  }
+
+  async function fetchAvisDossier(dossierId) {
+    try {
+      const response = await fetch(getApiUrl('avis') + '&method=GET&dossier_id=' + encodeURIComponent(dossierId));
+      const data = await response.json();
+      if (data.status === 200 && Array.isArray(data.data)) {
+        return data.data;
+      }
+      console.warn('API avis renvoyé:', data);
+    } catch (e) {
+      console.error('Erreur de chargement des avis:', e);
+    }
+    return [];
+  }
+
+  function renderAvisTimeline(avisList) {
+    const timeline = document.getElementById('timeline_container');
+    if (!avisList.length) {
+      timeline.innerHTML = `<div class="empty-state">Aucun avis disponible pour ce dossier.</div>`;
+      return;
+    }
+
+    timeline.innerHTML = avisList.map(avisItem => {
+      const serviceName = avisItem.service_name || 'Service inconnu';
+      const avis = avisItem.avis || 'N/A';
+      const icon = avis === 'Favorable' ? '✓' : avis === 'Defavorable' ? '✗' : '—';
+      const color = avis === 'Favorable' ? 'color: var(--success);' : avis === 'Defavorable' ? 'color: var(--danger);' : 'color: var(--text-muted);';
+      return `<div class="timeline-item">
+        <div class="timeline-marker" style="${color}">${icon}</div>
+        <div class="timeline-content">
+          <h3>${serviceName.toUpperCase()}</h3>
+          <p>${avis}</p>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function chargerDossier(num) {
+    const d = dossiers.find(x => x.num_dossier === num);
+    if(!d) { toast('Dossier introuvable', 'error'); return; }
+    
+    // Afficher détails
+    document.getElementById('detail-title').textContent = `Dossier ${d.num_dossier}`;
+    document.getElementById('detail-subtitle').textContent = `Requérant: ${d.requerant || '-'}`;
+    document.getElementById('detail_num_dossier').textContent = d.num_dossier;
+    document.getElementById('detail_date_intro').textContent = d.date_intro || '-';
+    document.getElementById('detail_civilite').textContent = d.civilite || '-';
+    document.getElementById('detail_requerant').textContent = d.requerant || '-';
+    document.getElementById('detail_tel_requerant').textContent = d.tel_requerant || '-';
+    document.getElementById('detail_depose_par').textContent = d.depose_par === 'AUTRE' ? 'Autre personne' : 'Propriétaire';
+    document.getElementById('detail_num_parcelle').textContent = d.num_parcelle || '-';
+    document.getElementById('detail_commune').textContent = d.commune || '-';
+    document.getElementById('detail_lotissement').textContent = d.lotissement || '-';
+    
+    // Gérer l'affichage du nom du déposant
+    const nomDeposantField = document.getElementById('detail_nom_deposant_field');
+    const nomDeposantValue = document.getElementById('detail_nom_deposant');
+    if (d.depose_par === 'AUTRE' && d.nom_deposant) {
+      nomDeposantField.style.display = 'block';
+      nomDeposantValue.textContent = d.nom_deposant;
+    } else {
+      nomDeposantField.style.display = 'none';
+    }
+    document.getElementById('detail_superficie_parcelle').textContent = (d.superficie_parcelle || '-') + (d.superficie_parcelle ? ' m²' : '');
+    document.getElementById('detail_superficie_batie').textContent = (d.superficie_batie || '-') + (d.superficie_batie ? ' m²' : '');
+    document.getElementById('detail_nb_niveaux').textContent = (d.nb_niveaux === 0 || d.nb_niveaux === '0') ? '0' : (d.nb_niveaux || '-');
+    document.getElementById('detail_usage').textContent = d.usage || '-';
+    document.getElementById('detail_taxe_urbanisme').textContent = d.taxe_urbanisme ? (d.taxe_urbanisme + ' FCFA') : '-';
+    document.getElementById('detail_taxe_municipale').textContent = d.taxe_municipale ? (d.taxe_municipale + ' FCFA') : '-';
+    document.getElementById('detail_autres_taxes').textContent = d.autres_taxes ? (d.autres_taxes + ' FCFA') : '-';
+    document.getElementById('detail_situation_dossier').textContent = d.situation_dossier || '-';
+    document.getElementById('detail_date_transmission').textContent = d.date_transmission || '-';
+    document.getElementById('detail_date_signature').textContent = d.date_signature || '-';
+    
+    renderAvisTimeline([]);
+    showTab('detail');
+
+    const avisList = await fetchAvisDossier(d.id);
+    renderAvisTimeline(avisList);
+    toast('Dossier chargé', 'success');
+  }
+
+  function toast(msg, type='info') { 
+    const t=document.getElementById('toast'); 
+    t.textContent=msg; 
+    t.className='show '+type; 
+    clearTimeout(t._timer); 
+    t._timer=setTimeout(()=>t.className='',2500); 
+  }
+
+  window.onload = () => {
+    if(checkSession()) {
+      chargerDossiersSupabase();
+    }
+  };
+</script>
+
+<!-- Signature développeur -->
+<div style="position: fixed; bottom: 10px; right: 10px; font-size: 10px; color: rgba(0,0,0,0.5); font-family: 'Source Sans 3', sans-serif; z-index: 1000;">
+  Développé par MMS © 2026
+</div>
+
+</body>
+</html>
