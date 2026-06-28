@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Suivi de dossier</title>
+  <link rel="icon" type="image/jpeg" href="images/muctat-logo.jpg">
+  <style>
+    :root {
+      --page-bg: #eef6ff;
+      --surface: #ffffff;
+      --surface-soft: #f8fbff;
+      --text: #12203a;
+      --text-muted: #5f7291;
+      --primary: #0b3d6e;
+      --primary-soft: rgba(11, 61, 110, 0.12);
+      --success: #1f7d4a;
+      --warning: #b8860b;
+      --danger: #c02f38;
+      --info: #185fa5;
+      --border: #e3ecf7;
+    }
+
+    * { box-sizing: border-box; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
+    html { -webkit-text-size-adjust: 100%; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      background: radial-gradient(circle at top, rgba(151, 203, 255, 0.35) 0%, rgba(255, 255, 255, 0.95) 40%), linear-gradient(180deg, #eaf2fb 0%, #f8fbff 55%, #ffffff 100%);
+      background-attachment: fixed;
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.5;
+    }
+
+    /* ===== Page shell ===== */
+    .page {
+      max-width: 1040px;
+      margin: 0 auto;
+      border-radius: 0;
+      overflow: hidden;
+      box-shadow: none;
+      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,251,255,0.96));
+      animation: pageIn 0.5s ease both;
+    }
+
+    @keyframes pageIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (min-width: 640px) {
+      .page {
+        margin: 28px auto;
+        border-radius: 28px;
+        box-shadow: 0 24px 80px rgba(15, 33, 68, 0.12);
+      }
+    }
+
+    /* ===== Header ===== */
+    .page-header {
+      padding: 22px 18px 26px;
+      background: linear-gradient(135deg, #0f4d91, #1a6ebd);
+      color: white;
+      display: grid;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    @media (min-width: 640px) {
+      .page-header {
+        padding: 32px 34px;
+        gap: 18px;
+        position: static;
+      }
+    }
+
+    .page-header .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .page-header .brand-row img {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      object-fit: contain;
+      background: white;
+      padding: 3px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+      flex-shrink: 0;
+    }
+
+    .page-header .brand-row span {
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      opacity: 0.85;
+      font-weight: 600;
+    }
+
+    .page-header h1 {
+      margin: 0;
+      font-size: clamp(1.45rem, 5vw, 2.4rem);
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+    }
+
+    .page-header p {
+      margin: 0;
+      max-width: 760px;
+      font-size: 0.92rem;
+      opacity: 0.86;
+      line-height: 1.65;
+    }
+
+    @media (min-width: 640px) {
+      .page-header p { font-size: 1rem; line-height: 1.8; }
+    }
+
+    .page-header .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.18);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      width: fit-content;
+    }
+
+    /* ===== Body ===== */
+    .page-body {
+      padding: 16px 14px 28px;
+      display: grid;
+      gap: 16px;
+    }
+
+    @media (min-width: 640px) {
+      .page-body { padding: 32px; gap: 26px; }
+    }
+
+    .fade-in {
+      animation: fadeIn 0.45s ease both;
+    }
+    .fade-in.delay-1 { animation-delay: 0.05s; }
+    .fade-in.delay-2 { animation-delay: 0.1s; }
+    .fade-in.delay-3 { animation-delay: 0.15s; }
+    .fade-in.delay-4 { animation-delay: 0.2s; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .notice {
+      background: rgba(14, 80, 146, 0.07);
+      border-left: 5px solid #185fa5;
+      border-radius: 18px;
+      padding: 18px 18px;
+      box-shadow: 0 12px 24px rgba(15, 33, 68, 0.06);
+    }
+
+    @media (min-width: 640px) {
+      .notice { border-radius: 24px; padding: 24px 26px; box-shadow: 0 18px 30px rgba(15, 33, 68, 0.06); }
+    }
+
+    .notice strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 1rem;
+      color: var(--primary);
+    }
+
+    .notice p {
+      margin: 0;
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+
+    /* ===== Summary cards ===== */
+    .summary-grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 1fr;
+    }
+
+    @media (min-width: 640px) {
+      .summary-grid { gap: 18px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    }
+
+    .summary-card {
+      background: var(--surface);
+      border: 1px solid rgba(11, 61, 110, 0.08);
+      border-radius: 18px;
+      padding: 16px 18px;
+      box-shadow: 0 10px 22px rgba(15, 33, 68, 0.05);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    @media (min-width: 640px) {
+      .summary-card { border-radius: 22px; padding: 22px 24px; box-shadow: 0 16px 30px rgba(15, 33, 68, 0.06); }
+    }
+
+    .summary-card h3 {
+      margin: 0 0 8px;
+      font-size: 0.78rem;
+      color: var(--primary);
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .summary-card p {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.25;
+      word-break: break-word;
+    }
+
+    @media (min-width: 640px) {
+      .summary-card p { font-size: 1.35rem; line-height: 1.2; }
+    }
+
+    .summary-card small {
+      display: block;
+      margin-top: 8px;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    /* ===== Field grid ===== */
+    .field-group {
+      display: grid;
+      gap: 12px;
+    }
+
+    @media (min-width: 640px) {
+      .field-group { gap: 18px; }
+    }
+
+    @media (min-width: 860px) {
+      .field-group { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    .field {
+      border-radius: 16px;
+      background: white;
+      border: 1px solid rgba(11, 61, 110, 0.08);
+      padding: 16px 18px;
+      box-shadow: 0 8px 20px rgba(15, 33, 68, 0.04);
+    }
+
+    @media (min-width: 640px) {
+      .field { border-radius: 20px; padding: 22px 24px; box-shadow: 0 14px 30px rgba(15, 33, 68, 0.05); }
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .field .value {
+      font-size: 0.95rem;
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 1.4rem;
+      word-break: break-word;
+    }
+
+    .field .value strong { color: var(--primary); }
+
+    /* ===== Status badge ===== */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      min-width: 0;
+      text-align: center;
+    }
+
+    .status-badge .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0;
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .status-en-instruction { background: rgba(255, 193, 7, 0.16); color: #b26d00; }
+    .status-complete { background: rgba(40, 167, 69, 0.16); color: #1e6b3b; }
+    .status-arrete { background: rgba(23, 162, 184, 0.16); color: #0f5c6d; }
+    .status-rejete { background: rgba(220, 53, 69, 0.16); color: #a2202d; }
+    .status-incomplete { background: rgba(255, 111, 0, 0.16); color: #8c4800; }
+    .status-quittance-non-payee { background: rgba(232, 62, 140, 0.16); color: #8b1b66; }
+    .status-en-signature { background: rgba(156, 39, 176, 0.16); color: #4e1f5e; }
+
+    /* ===== Progress ===== */
+    .progress-wrapper {
+      margin-top: 16px;
+      background: #eff5ff;
+      border-radius: 16px;
+      padding: 14px 16px;
+      border: 1px solid rgba(11, 61, 110, 0.08);
+    }
+
+    .progress-label {
+      margin-bottom: 10px;
+      color: var(--text-muted);
+      font-size: 0.84rem;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 14px;
+      border-radius: 999px;
+      background: rgba(11, 61, 110, 0.1);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #185fa5, #0b3d6e);
+      transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1), background 0.6s ease;
+      border-radius: 999px;
+    }
+
+    /* Couleur de la barre selon le % d'avis favorables */
+    .progress-fill.bar-success {
+      background: linear-gradient(90deg, #28a745, #1f7d4a);
+      box-shadow: 0 0 12px rgba(40, 167, 69, 0.35);
+    }
+    .progress-fill.bar-warning {
+      background: linear-gradient(90deg, #f0ad1f, #b8860b);
+      box-shadow: 0 0 12px rgba(184, 134, 11, 0.3);
+    }
+    .progress-fill.bar-danger {
+      background: linear-gradient(90deg, #e0525c, #c02f38);
+      box-shadow: 0 0 12px rgba(192, 47, 56, 0.3);
+    }
+
+    /* Bloc des motifs de refus, sans aucune mention du service concerné */
+    .motifs-block {
+      margin-top: 14px;
+      background: rgba(192, 47, 56, 0.05);
+      border-left: 4px solid var(--danger);
+      border-radius: 14px;
+      padding: 16px 18px;
+      font-size: 0.9rem;
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .motifs-block strong { color: var(--danger); display: block; margin-bottom: 8px; }
+    .motifs-block ul { margin: 0; padding-left: 20px; }
+    .motifs-block li { margin-bottom: 6px; }
+    .motifs-block li:last-child { margin-bottom: 0; }
+
+    /* ===== Content panels ===== */
+    .content-columns {
+      display: grid;
+      gap: 14px;
+    }
+
+    @media (min-width: 640px) {
+      .content-columns { gap: 22px; }
+    }
+
+    @media (min-width: 980px) {
+      .content-columns { grid-template-columns: 1fr 1fr; }
+    }
+
+    .content-panel {
+      background: white;
+      border-radius: 18px;
+      border: 1px solid rgba(11, 61, 110, 0.08);
+      box-shadow: 0 10px 22px rgba(15, 33, 68, 0.05);
+      padding: 18px;
+    }
+
+    @media (min-width: 640px) {
+      .content-panel { border-radius: 22px; box-shadow: 0 16px 30px rgba(15, 33, 68, 0.06); padding: 24px; }
+    }
+
+    .content-panel h2 {
+      margin: 0 0 14px;
+      font-size: 0.95rem;
+      color: var(--primary);
+      letter-spacing: 0.02em;
+    }
+
+    /* ===== Avis cards ===== */
+    .progress-summary {
+      margin-bottom: 18px;
+    }
+
+    .status-banner {
+      text-align: center;
+      padding: 16px;
+      border-radius: 14px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+
+    @media (min-width: 640px) {
+      .status-banner { padding: 18px; border-radius: 14px; }
+    }
+
+    .status-banner.is-success { color: var(--success); background: rgba(31, 125, 74, 0.08); }
+    .status-banner.is-danger { color: var(--danger); background: rgba(192, 47, 56, 0.08); }
+    .status-banner.is-warning { color: var(--warning); background: rgba(184, 134, 11, 0.08); }
+
+    .empty {
+      text-align: center;
+      padding: 40px 16px;
+      color: var(--text-muted);
+      animation: fadeIn 0.4s ease both;
+    }
+
+    @media (min-width: 640px) {
+      .empty { padding: 44px 18px; }
+    }
+
+    .empty h2 { margin: 0 0 14px; font-size: 1.3rem; color: var(--primary); }
+    .empty p { font-size: 0.92rem; line-height: 1.6; }
+
+    @media (min-width: 640px) {
+      .empty h2 { font-size: 1.45rem; }
+    }
+
+    .footer {
+      text-align: center;
+      padding: 16px 14px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      background: #f5f8ff;
+    }
+
+    /* ===== Loader (skeleton, feels faster/smoother than a spinner) ===== */
+    .loader {
+      display: grid;
+      gap: 14px;
+      padding: 8px 0 4px;
+    }
+
+    .skeleton-line {
+      height: 16px;
+      border-radius: 8px;
+      background: linear-gradient(90deg, #e9f0fb 25%, #f4f8fd 37%, #e9f0fb 63%);
+      background-size: 400% 100%;
+      animation: shimmer 1.4s ease infinite;
+    }
+
+    .skeleton-card {
+      height: 84px;
+      border-radius: 16px;
+      background: linear-gradient(90deg, #e9f0fb 25%, #f4f8fd 37%, #e9f0fb 63%);
+      background-size: 400% 100%;
+      animation: shimmer 1.4s ease infinite;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 100% 0; }
+      100% { background-position: 0 0; }
+    }
+
+    /* ===== Touch-friendly focus ===== */
+    a:focus-visible, button:focus-visible {
+      outline: 3px solid rgba(24, 95, 165, 0.5);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <div class="brand-row">
+        <img src="images/muctat-logo.jpg" alt="">
+        <span>MUCTAT · Division de Thiès</span>
+      </div>
+      <h1>Suivi public du dossier</h1>
+      <p>Cette page permet de consulter l’avancement d’un dossier à partir du QR code imprimé sur le récépissé. Les informations sont affichées en lecture seule, sans aucune saisie possible.</p>
+    </div>
+    <div class="page-body" id="page-body">
+      <div class="loader" aria-busy="true" aria-label="Chargement du dossier">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-line" style="width: 60%;"></div>
+        <div class="skeleton-line" style="width: 85%;"></div>
+        <div class="skeleton-card" style="height: 140px;"></div>
+      </div>
+    </div>
+    <div class="footer">MUCTAT - Ministère de l'Urbanisme, Thiès</div>
+  </div>
+
+  <script>
+    function getQueryParam(name) {
+      const params = new URLSearchParams(window.location.search);
+      return params.get(name);
+    }
+
+    function formatDateTime(value) {
+      if (!value) return '-';
+      const date = new Date(value);
+      if (isNaN(date.getTime())) {
+        return value;
+      }
+      return date.toLocaleString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    function formatSituation(value) {
+      if (!value) return '-';
+      const normalized = String(value).trim().toUpperCase();
+      const map = {
+        'EN INSTRUCTION': 'En instruction',
+        'COMPLETE': 'Complété',
+        'ARRETE': 'Arrêté',
+        'REJETE': 'Rejeté',
+        'INCOMPLETE': 'Incomplet',
+        'QUITTANCE NON PAYEE': 'Quittance non payée',
+        'EN SIGNATURE': 'En signature'
+      };
+      return map[normalized] || value;
+    }
+
+    function statusBadgeClass(value) {
+      const normalized = String(value || '').trim().toLowerCase().replace(/\s+/g, '-');
+      return `status-badge status-${normalized}`;
+    }
+
+    function renderStatusBadge(value) {
+      const label = formatSituation(value);
+      return `<span class="${statusBadgeClass(value)}"><span class="dot"></span>${label}</span>`;
+    }
+
+    function renderField(label, value) {
+      return `<div class="field"><label>${label}</label><div class="value">${value || '-'}</div></div>`;
+    }
+
+
+    function renderHistoryItem(item) {
+      const when = formatDateTime(item.changed_at);
+      const field = item.field_name ? `${item.field_name} : ` : '';
+      const details = item.old_value || item.new_value ? `${field}${item.old_value ? item.old_value : ''}${item.old_value && item.new_value ? ' → ' : ''}${item.new_value ? item.new_value : ''}` : '';
+      return `
+        <div class="timeline-item">
+          <time>${when}</time>
+          <strong>${item.action || 'Action'}</strong>
+          <div class="details">${details || 'Aucune information complémentaire.'}</div>
+        </div>
+      `;
+    }
+
+    function renderHistorySection(history) {
+      // L'historique n'est plus affiché
+      return '';
+    }
+
+    function renderAvisSection(avisList) {
+      if (!Array.isArray(avisList) || avisList.length === 0) {
+        // Aucun avis encore saisi : dossier nouvellement créé, en attente
+        // de consultation des services. On ne doit jamais afficher "favorable"
+        // par défaut.
+        return `
+          <div class="progress-summary fade-in">
+            <div class="progress-label">Avancement des avis : <strong style="color: var(--warning);">0%</strong></div>
+            <div class="progress-track">
+              <div class="progress-fill bar-warning" data-target-width="6"></div>
+            </div>
+          </div>
+          <div class="status-banner is-warning fade-in delay-1">⏳ Avis en attente des services consultés</div>
+        `;
+      }
+
+      // Calculer le statut global : Favorable / En attente / Défavorable
+      const totalAvis = avisList.length;
+      const avisDefavorables = avisList.filter(a => String(a.avis || '').trim().toLowerCase() === 'defavorable');
+      const avisEnAttente = avisList.filter(a => {
+        const val = String(a.avis || '').trim().toLowerCase();
+        return val === 'en attente' || val === '';
+      });
+      const avisFavorables = totalAvis - avisDefavorables.length - avisEnAttente.length;
+      const pourcentage = Math.round((avisFavorables / totalAvis) * 100);
+
+      // Couleur de la barre selon le pourcentage de favorables (dégradé
+      // rouge → jaune → vert), pas selon un statut "pire cas"
+      let barColorClass = 'bar-danger';
+      let labelColorVar = 'var(--danger)';
+      if (pourcentage >= 100) { barColorClass = 'bar-success'; labelColorVar = 'var(--success)'; }
+      else if (pourcentage >= 50) { barColorClass = 'bar-warning'; labelColorVar = 'var(--warning)'; }
+
+      // Largeur minimale visible (6%) pour que la couleur reste perceptible
+      // même quand très peu d'avis sont favorables (proche de 0%)
+      const displayWidth = Math.max(pourcentage, 6);
+
+      // Barre de progression : démarre à 0% et se remplit en douceur une fois
+      // insérée dans le DOM (voir l'appel animateProgressBars plus bas)
+      let html = `
+        <div class="progress-summary fade-in">
+          <div class="progress-label">Avancement des avis : <strong style="color: ${labelColorVar};">${pourcentage}%</strong></div>
+          <div class="progress-track">
+            <div class="progress-fill ${barColorClass}" data-target-width="${displayWidth}"></div>
+          </div>
+        </div>
+      `;
+
+      // Cas idéal : tout est favorable
+      if (avisDefavorables.length === 0 && avisEnAttente.length === 0) {
+        html += `<div class="status-banner is-success fade-in delay-1">✓ Tous les avis sont favorables</div>`;
+        return html;
+      }
+
+      // Avis défavorable(s) : on affiche uniquement les motifs, regroupés,
+      // sans jamais préciser quel service ou quel avis est concerné
+      if (avisDefavorables.length > 0) {
+        const motifs = avisDefavorables
+          .map(a => String(a.observation || '').trim())
+          .filter(Boolean);
+
+        html += `<div class="status-banner is-danger fade-in delay-1">⚠ Dossier bloqué : un ou plusieurs avis sont défavorables</div>`;
+
+        if (motifs.length > 0) {
+          html += `<div class="motifs-block fade-in delay-2"><strong>Motif${motifs.length > 1 ? 's' : ''} du refus :</strong><ul>${motifs.map(m => `<li>${m}</li>`).join('')}</ul></div>`;
+        }
+        return html;
+      }
+
+      // Sinon, uniquement des avis en attente (cas par défaut à la création
+      // d'un dossier, avant que les services ne se prononcent) : aucun détail,
+      // juste la barre jaune ci-dessus suffit déjà à l'indiquer.
+      html += `<div class="status-banner is-warning fade-in delay-1">⏳ Avis en attente des services consultés</div>`;
+      return html;
+    }
+
+    function animateProgressBars(container) {
+      const bars = container.querySelectorAll('.progress-fill[data-target-width]');
+      bars.forEach(bar => {
+        const target = bar.getAttribute('data-target-width');
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            bar.style.width = target + '%';
+          });
+        });
+      });
+    }
+
+
+    function showNotFound(num) {
+      document.getElementById('page-body').innerHTML = `
+        <div class="empty">
+          <h2>Dossier introuvable</h2>
+          <p>Aucun dossier n’a été trouvé pour le numéro <strong>${num}</strong>. Vérifiez le numéro saisi ou rescannez le QR code du récépissé.</p>
+        </div>
+      `;
+    }
+
+    function showError(message) {
+      document.getElementById('page-body').innerHTML = `
+        <div class="empty">
+          <h2>Chargement impossible</h2>
+          <p>${message}</p>
+        </div>
+      `;
+    }
+
+    async function fetchHistory(dossierId) {
+      try {
+        const response = await fetch(`./api/index.php?route=history/${encodeURIComponent(dossierId)}`);
+        if (!response.ok) {
+          return null;
+        }
+        const data = await response.json();
+        return Array.isArray(data.data) ? data.data : [];
+      } catch (error) {
+        return null;
+      }
+    }
+
+    async function fetchAvis(dossierId) {
+      try {
+        const response = await fetch(`./api/index.php?route=avis&dossier_id=${encodeURIComponent(dossierId)}`);
+        if (!response.ok) {
+          return null;
+        }
+        const data = await response.json();
+        return Array.isArray(data.data) ? data.data : [];
+      } catch (error) {
+        return null;
+      }
+    }
+
+    async function loadDossier(num) {
+      const response = await fetch(`./api/index.php?route=dossiers&num_dossier=${encodeURIComponent(num)}`);
+      if (!response.ok) {
+        showNotFound(num);
+        return;
+      }
+      const data = await response.json();
+      if (!data || !Array.isArray(data.data) || !data.data.length) {
+        showNotFound(num);
+        return;
+      }
+
+      const d = data.data[0];
+      const updatedAt = d.updated_at || d.created_at || d.date_intro;
+      const situationLabel = formatSituation(d.situation_dossier);
+
+      document.getElementById('page-body').innerHTML = `
+        <div class="notice fade-in">
+          <strong>Dossier n° ${d.num_dossier}</strong>
+          <p>Voici la fiche de suivi du dossier. Elle présente la situation actuelle, les informations principales et les avis des services consultés.</p>
+          <div style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+            ${renderStatusBadge(d.situation_dossier)}
+          </div>
+        </div>
+
+        <div class="summary-grid fade-in delay-1">
+          <div class="summary-card">
+            <h3>Demandeur</h3>
+            <p>${d.civilite ? d.civilite + ' ' : ''}${d.requerant || 'Non renseigné'}</p>
+            <small>${d.tel_requerant || 'Téléphone non disponible'}</small>
+            ${d.depose_par === 'AUTRE' && d.nom_deposant ? `<small>Déposé par : ${d.nom_deposant}</small>` : ''}
+          </div>
+          <div class="summary-card">
+            <h3>Localisation du projet</h3>
+            <p>${d.commune || 'Commune non renseignée'}</p>
+            <small>${d.lotissement || 'Lotissement non renseigné'}</small>
+            <small>Parcelle ${d.num_parcelle || '—'}</small>
+          </div>
+          <div class="summary-card">
+            <h3>Description du projet</h3>
+            <p>${d.usage || 'Usage inconnu'}</p>
+            <small>${d.nb_niveaux === 0 || d.nb_niveaux === '0' ? '0 niveaux' : (d.nb_niveaux ? d.nb_niveaux + ' niveaux' : 'Niveaux non indiqués')}</small>
+            <small>Surface parcelle : ${d.superficie_parcelle ? d.superficie_parcelle + ' m²' : '—'}</small>
+            <small>Surface bâtie : ${d.superficie_batie ? d.superficie_batie + ' m²' : '—'}</small>
+          </div>
+          <div class="summary-card">
+            <h3>État du traitement</h3>
+            ${renderField('Arrêté', d.num_arrete || 'Non renseigné')}
+            ${renderField('Signature', formatDateTime(d.date_signature))}
+          </div>
+        </div>
+
+        <div class="field-group fade-in delay-2">
+          ${renderField('Date de dépôt', formatDateTime(d.date_intro))}
+          ${renderField('Taxe d’urbanisme', d.taxe_urbanisme ? d.taxe_urbanisme + ' FCFA' : 'Non renseigné')}
+          ${renderField('Taxe municipale', d.taxe_municipale ? d.taxe_municipale + ' FCFA' : 'Non renseigné')}
+          ${renderField('Autres taxes', d.autres_taxes ? d.autres_taxes + ' FCFA' : 'Aucune')}
+          ${renderField('Retrait', d.retrait || 'Non renseigné')}
+        </div>
+
+        <div class="content-columns fade-in delay-3">
+          <div class="content-panel" id="avis-content" style="grid-column: 1 / -1;">
+            <h2>Avis des services et points de blocage</h2>
+            <div class="loader" aria-busy="true" aria-label="Chargement des avis">
+              <div class="skeleton-line" style="width: 50%;"></div>
+              <div class="skeleton-card" style="height: 24px; border-radius: 999px;"></div>
+              <div class="skeleton-card"></div>
+              <div class="skeleton-card"></div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      if (d.id) {
+        const avis = await fetchAvis(d.id);
+        const avisContent = document.getElementById('avis-content');
+        avisContent.innerHTML = `<h2>Avis des services et points de blocage</h2>${renderAvisSection(avis)}`;
+        animateProgressBars(avisContent);
+      } else {
+        document.getElementById('avis-content').innerHTML = `
+          <h2>Avis des services et points de blocage</h2>
+          <div style="color: var(--text-muted); padding: 24px; text-align: center;">Impossible de charger les avis sans identifiant interne du dossier.</div>
+        `;
+      }
+    }
+
+    const dossier = getQueryParam('dossier');
+    if (!dossier) {
+      document.getElementById('page-body').innerHTML = `
+        <div class="notice">
+          <strong>Bienvenue sur le suivi public MUCTAT</strong>
+          <p>Scannez le QR code figurant sur votre récépissé de dépôt pour afficher le dossier correspondant. Cette page sert uniquement à consulter l’état d’avancement, les avis rendus et les informations essentielles du projet.</p>
+        </div>
+
+        <div class="empty">
+          <h2>Numéro de dossier manquant</h2>
+          <p>Aucun identifiant de dossier n’a été détecté dans l’adresse. Utilisez le QR code du récépissé pour ouvrir automatiquement le bon suivi.</p>
+        </div>
+      `;
+    } else {
+      loadDossier(dossier).catch((err) => {
+        console.error(err);
+        showError('Une erreur est survenue lors du chargement du dossier.');
+      });
+    }
+  </script>
+
+<!-- Signature développeur -->
+<div style="position: fixed; bottom: 10px; right: 10px; font-size: 10px; color: rgba(0,0,0,0.5); font-family: 'Source Sans 3', sans-serif; z-index: 1000;">
+  Développé par MMS © 2026
+</div>
+
+</body>
+</html>
